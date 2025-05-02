@@ -1,0 +1,9 @@
+{
+  "buildCommand": "convex deploy && npm run build",
+  "rewrites": [
+    {
+      "source": "/api/storage/:id",
+      "destination": "https://:id.convex.cloud/storage/:id"
+    }
+  ]
+}
