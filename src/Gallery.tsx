@@ -83,9 +83,9 @@ function MediaCard({ item }: { item: any }) {
   return (
     <div className="rounded-lg overflow-hidden shadow-lg">
       {item.type === "image" ? (
-        <img src={item.url ?? undefined} alt={item.title} className="w-full h-64 object-cover" />
+        <img src={item.url} alt={item.title} className="w-full h-64 object-cover" />
       ) : (
-        <video src={item.url ?? undefined} controls className="w-full h-64 object-cover" />
+        <video src={item.url} controls className="w-full h-64 object-cover" />
       )}
       <div className="p-4">
         <h3 className="text-lg font-semibold">{item.title}</h3>

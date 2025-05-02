@@ -36,8 +36,7 @@ export default function Blog() {
       const { storageId } = await result.json();
       
       // Get the URL for the uploaded image
-      const items = await fetch(`/convex-url/${storageId}`).then(r => r.json());
-      const url = items.url;
+      const url = await fetch(`/api/storage/${storageId}`).then(r => r.text());
       
       // Add image to editor
       editor.chain().focus().setImage({ src: url }).run();
