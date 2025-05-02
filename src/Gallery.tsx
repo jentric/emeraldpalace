@@ -3,6 +3,7 @@ import { api } from "../convex/_generated/api";
 import { useState } from "react";
 import { Comments } from "./components/Comments";
 import { Id } from "../convex/_generated/dataModel";
+import { toast } from "sonner";
 
 const relationshipTypes = [
   "Friend",
@@ -16,6 +17,11 @@ const relationshipTypes = [
 
 type Relationship = typeof relationshipTypes[number];
 
+type UploadState = {
+  file: File;
+  caption: string;
+} | null;
+
 export default function Gallery() {
   const media = useQuery(api.media.list);
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
@@ -24,26 +30,39 @@ export default function Gallery() {
   const [uploading, setUploading] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<number | null>(null);
   const [selectedRelationships, setSelectedRelationships] = useState<Relationship[]>([...relationshipTypes]);
+  const [uploadState, setUploadState] = useState<UploadState>(null);
   
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadState({ file, caption: "" });
+  }
+
+  async function handleUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!uploadState) return;
     
     try {
       setUploading(true);
       const postUrl = await generateUploadUrl();
       const result = await fetch(postUrl, {
         method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
+        headers: { "Content-Type": uploadState.file.type },
+        body: uploadState.file,
       });
       const { storageId } = await result.json();
       await createMedia({
-        title: file.name,
-        type: file.type.startsWith("image/") ? "image" : "video",
+        title: uploadState.file.name,
+        type: uploadState.file.type.startsWith("image/") ? "image" : "video",
         storageId,
         visibleTo: selectedRelationships,
+        caption: uploadState.caption,
       });
+      setUploadState(null);
+      toast.success("Media uploaded successfully!");
+    } catch (error) {
+      toast.error("Failed to upload media");
+      console.error(error);
     } finally {
       setUploading(false);
     }
@@ -86,35 +105,68 @@ export default function Gallery() {
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-emerald-800">Photographs & Videos</h1>
           <label className="bg-emerald-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-emerald-700">
-            {uploading ? "Uploading..." : "Upload Media"}
+            Select Media
             <input
               type="file"
               accept="image/*,video/*"
-              onChange={handleUpload}
+              onChange={handleFileSelect}
               disabled={uploading}
               className="hidden"
             />
           </label>
         </div>
         
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Who can view this media?</h3>
-          <div className="flex flex-wrap gap-2">
-            {relationshipTypes.map(relationship => (
+        {uploadState && (
+          <form onSubmit={handleUpload} className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Selected file: {uploadState.file.name}</h3>
+              <input
+                type="text"
+                value={uploadState.caption}
+                onChange={(e) => setUploadState({ ...uploadState, caption: e.target.value })}
+                placeholder="Add a caption (optional)"
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Who can view this media?</h3>
+              <div className="flex flex-wrap gap-2">
+                {relationshipTypes.map(relationship => (
+                  <button
+                    key={relationship}
+                    type="button"
+                    onClick={() => toggleRelationship(relationship)}
+                    className={`px-3 py-1 rounded-full text-sm ${
+                      selectedRelationships.includes(relationship)
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {relationship}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
               <button
-                key={relationship}
-                onClick={() => toggleRelationship(relationship)}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  selectedRelationships.includes(relationship)
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                type="button"
+                onClick={() => setUploadState(null)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded"
               >
-                {relationship}
+                Cancel
               </button>
-            ))}
-          </div>
-        </div>
+              <button
+                type="submit"
+                disabled={uploading}
+                className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {uploading ? "Uploading..." : "Upload"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
