@@ -3,6 +3,16 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Doc, Id } from "./_generated/dataModel";
 
+const relationshipTypes = [
+  "Friend",
+  "Partner",
+  "Family",
+  "Parent",
+  "Former Partner",
+  "Colleague",
+  "School",
+] as const;
+
 async function requireProfile(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Not authenticated");
@@ -32,6 +42,7 @@ export const create = mutation({
     caption: v.optional(v.string()),
     type: v.union(v.literal("image"), v.literal("video")),
     storageId: v.id("_storage"),
+    visibleTo: v.array(v.union(...relationshipTypes.map(r => v.literal(r)))),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireProfile(ctx);
@@ -43,6 +54,7 @@ export const create = mutation({
       storageId: args.storageId,
       authorId: userId,
       createdAt: Date.now(),
+      visibleTo: args.visibleTo,
     });
   },
 });
@@ -51,6 +63,7 @@ export const update = mutation({
   args: {
     id: v.id("mediaItems"),
     caption: v.string(),
+    visibleTo: v.array(v.union(...relationshipTypes.map(r => v.literal(r)))),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireProfile(ctx);
@@ -62,22 +75,31 @@ export const update = mutation({
     
     await ctx.db.patch(args.id, {
       caption: args.caption,
+      visibleTo: args.visibleTo,
     });
   },
 });
 
 export const list = query({
   handler: async (ctx) => {
-    await requireProfile(ctx);
+    const { profile } = await requireProfile(ctx);
+    
     const items = await ctx.db
       .query("mediaItems")
       .order("desc")
       .collect();
     
+    // Filter items based on visibility, showing all items that don't have visibility set
+    const visibleItems = items.filter(item => 
+      !item.visibleTo || item.visibleTo.includes(profile.relationship)
+    );
+    
     return Promise.all(
-      items.map(async (item) => ({
+      visibleItems.map(async (item) => ({
         ...item,
         url: await ctx.storage.getUrl(item.storageId),
+        // Provide default visibility if not set
+        visibleTo: item.visibleTo || relationshipTypes,
       }))
     );
   },

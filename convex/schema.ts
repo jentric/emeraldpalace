@@ -37,13 +37,14 @@ const applicationTables = {
     storageId: v.id("_storage"),
     authorId: v.id("users"),
     createdAt: v.number(),
+    // Make visibleTo optional during migration
+    visibleTo: v.optional(v.array(v.union(...relationshipTypes.map(r => v.literal(r))))),
   }).index("by_author", ["authorId"]),
 
   comments: defineTable({
     content: v.string(),
     authorId: v.id("users"),
     createdAt: v.number(),
-    // The target can be either a post or media item
     targetType: v.union(v.literal("post"), v.literal("media")),
     targetId: v.union(v.id("posts"), v.id("mediaItems")),
   })
