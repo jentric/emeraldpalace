@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { webcrypto } from "node:crypto";
 
 const relationships = [
   "Friend",
@@ -14,6 +15,13 @@ const relationships = [
 ] as const;
 
 type Relationship = typeof relationships[number];
+
+// Helper function for secure random number generation
+function secureRandomId() {
+  const array = new Uint32Array(1);
+  webcrypto.getRandomValues(array);
+  return array[0].toString();
+}
 
 export function Profile() {
   const user = useQuery(api.auth.loggedInUser);
