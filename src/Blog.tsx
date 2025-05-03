@@ -101,15 +101,6 @@ function MenuBar({ editor }: { editor: any }) {
       </button>
       <button
         type="button"
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        className={`px-2 py-1 rounded ${
-          editor.isActive("blockquote") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
-        }`}
-      >
-        blockquote
-      </button>
-      <button
-        type="button"
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().chain().focus().undo().run()}
         className="px-2 py-1 rounded hover:bg-gray-100"

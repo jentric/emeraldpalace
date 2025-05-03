@@ -244,22 +244,24 @@ export default function Gallery() {
       )}
 
       {selectedMedia !== null && media && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
-          <div className="max-w-4xl w-full mx-4 bg-white rounded-lg overflow-hidden">
-            <div className="relative">
-              {media[selectedMedia].type === "image" ? (
-                <img
-                  src={media[selectedMedia].url || undefined}
-                  alt={media[selectedMedia].title}
-                  className="w-full"
-                />
-              ) : (
-                <video
-                  src={media[selectedMedia].url || undefined}
-                  controls
-                  className="w-full"
-                />
-              )}
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+          <div className="max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden flex flex-col">
+            <div className="relative flex-shrink-0">
+              <div className="max-h-[70vh] overflow-hidden">
+                {media[selectedMedia].type === "image" ? (
+                  <img
+                    src={media[selectedMedia].url || undefined}
+                    alt={media[selectedMedia].title}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <video
+                    src={media[selectedMedia].url || undefined}
+                    controls
+                    className="w-full h-full object-contain"
+                  />
+                )}
+              </div>
               <button
                 onClick={() => setSelectedMedia(null)}
                 className="absolute top-4 right-4 text-white bg-black/50 w-8 h-8 rounded-full flex items-center justify-center"
@@ -278,7 +280,7 @@ export default function Gallery() {
                 </button>
               )}
             </div>
-            <div className="p-4">
+            <div className="p-4 overflow-y-auto">
               <h3 className="text-lg font-semibold">{media[selectedMedia].title}</h3>
               {media[selectedMedia].caption && (
                 <p className="text-gray-600 mt-1">{media[selectedMedia].caption}</p>
