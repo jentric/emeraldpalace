@@ -16,6 +16,7 @@ function MenuBar({ editor }: { editor: any }) {
   return (
     <div className="border-b p-2 flex flex-wrap gap-2">
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleBold().run()}
         disabled={!editor.can().chain().focus().toggleBold().run()}
         className={`px-2 py-1 rounded ${
@@ -25,6 +26,7 @@ function MenuBar({ editor }: { editor: any }) {
         bold
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleItalic().run()}
         disabled={!editor.can().chain().focus().toggleItalic().run()}
         className={`px-2 py-1 rounded ${
@@ -34,6 +36,7 @@ function MenuBar({ editor }: { editor: any }) {
         italic
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleStrike().run()}
         disabled={!editor.can().chain().focus().toggleStrike().run()}
         className={`px-2 py-1 rounded ${
@@ -43,15 +46,7 @@ function MenuBar({ editor }: { editor: any }) {
         strike
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleCode().run()}
-        disabled={!editor.can().chain().focus().toggleCode().run()}
-        className={`px-2 py-1 rounded ${
-          editor.isActive("code") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
-        }`}
-      >
-        code
-      </button>
-      <button
+        type="button"
         onClick={() => editor.chain().focus().setParagraph().run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("paragraph") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -60,6 +55,7 @@ function MenuBar({ editor }: { editor: any }) {
         paragraph
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("heading", { level: 1 }) ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -68,6 +64,7 @@ function MenuBar({ editor }: { editor: any }) {
         h1
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("heading", { level: 2 }) ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -76,6 +73,7 @@ function MenuBar({ editor }: { editor: any }) {
         h2
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("heading", { level: 3 }) ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -84,6 +82,7 @@ function MenuBar({ editor }: { editor: any }) {
         h3
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("bulletList") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -92,6 +91,7 @@ function MenuBar({ editor }: { editor: any }) {
         bullet list
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("orderedList") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -100,14 +100,7 @@ function MenuBar({ editor }: { editor: any }) {
         ordered list
       </button>
       <button
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        className={`px-2 py-1 rounded ${
-          editor.isActive("codeBlock") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
-        }`}
-      >
-        code block
-      </button>
-      <button
+        type="button"
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
         className={`px-2 py-1 rounded ${
           editor.isActive("blockquote") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
@@ -116,12 +109,7 @@ function MenuBar({ editor }: { editor: any }) {
         blockquote
       </button>
       <button
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
-        className="px-2 py-1 rounded hover:bg-gray-100"
-      >
-        horizontal rule
-      </button>
-      <button
+        type="button"
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().chain().focus().undo().run()}
         className="px-2 py-1 rounded hover:bg-gray-100"
@@ -129,6 +117,7 @@ function MenuBar({ editor }: { editor: any }) {
         undo
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().chain().focus().redo().run()}
         className="px-2 py-1 rounded hover:bg-gray-100"
@@ -146,6 +135,34 @@ function PostContent({ content }: { content: any }) {
     editable: false,
   });
   return <EditorContent editor={editor} />;
+}
+
+function AuthorInfo({ userId }: { userId: Id<"users"> }) {
+  const profile = useQuery(api.profiles.get, { userId });
+  
+  if (!profile) return null;
+  
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100">
+        {profile.pictureUrl ? (
+          <img 
+            src={profile.pictureUrl} 
+            alt={profile.name} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            ?
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="font-medium">{profile.name}</div>
+        <div className="text-sm text-gray-500">{profile.relationship} of Emily</div>
+      </div>
+    </div>
+  );
 }
 
 export default function Blog() {
@@ -272,7 +289,7 @@ export default function Blog() {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-emerald-800 mb-8">Memories</h1>
 
-      <form onSubmit={handleSubmit} className="mb-12 space-y-4">
+      <div className="mb-12 space-y-4">
         <input
           type="text"
           value={title}
@@ -297,7 +314,7 @@ export default function Blog() {
             <EditorContent editor={editor} className="prose max-w-none p-4" />
           </div>
         </div>
-        <div className="flex justify-end gap-4">
+        <form onSubmit={handleSubmit} className="flex justify-end gap-4">
           <button
             type="submit"
             disabled={!title.trim() || !editor?.getText().trim()}
@@ -305,22 +322,29 @@ export default function Blog() {
           >
             Share Memory
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
 
       <div className="space-y-8">
         {posts?.map((post) => (
           <article key={post._id} className="border rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+            <div className="p-4 bg-gray-50 border-b">
+              <div className="flex justify-between items-start mb-4">
+                <AuthorInfo userId={post.authorId} />
+                {post.authorId === user?._id && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(post._id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
               <h2 className="text-xl font-semibold">{post.title}</h2>
-              {post.authorId === user?._id && (
-                <button
-                  onClick={() => handleDelete(post._id)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  Delete
-                </button>
-              )}
+              <div className="text-sm text-gray-500 mt-1">
+                {new Date(post.createdAt).toLocaleDateString()}
+              </div>
             </div>
             <div className="prose max-w-none p-4">
               <PostContent content={post.content} />
@@ -335,6 +359,7 @@ export default function Blog() {
       {status === "CanLoadMore" && (
         <div className="mt-8 flex justify-center">
           <button
+            type="button"
             onClick={() => loadMore(20)}
             className="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700"
           >

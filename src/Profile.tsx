@@ -15,11 +15,6 @@ const relationships = [
 
 type Relationship = typeof relationships[number];
 
-// Simple random ID generation that works in the browser
-function randomId() {
-  return Math.random().toString(36).substring(2);
-}
-
 export function Profile() {
   const user = useQuery(api.auth.loggedInUser);
   const profile = useQuery(api.profiles.getCurrentProfile);
@@ -60,6 +55,11 @@ export function Profile() {
     if (!file) return;
     
     try {
+      if (!profile?.name) {
+        toast.error("Please enter your name and relationship to Emily and click save first. Then retry uploading a profile picture.");
+        return;
+      }
+
       setUploading(true);
       const postUrl = await generateUploadUrl();
       const result = await fetch(postUrl, {
