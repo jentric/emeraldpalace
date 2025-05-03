@@ -1,7 +1,8 @@
-import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { paginationOptsValidator } from "convex/server";
 
 const relationshipTypes = [
   "Friend",
@@ -13,13 +14,13 @@ const relationshipTypes = [
   "School",
 ] as const;
 
-async function requireProfile(ctx: QueryCtx | MutationCtx) {
+async function requireProfile(ctx: any) {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Not authenticated");
   
   const profile = await ctx.db
     .query("profiles")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
     .unique();
   
   if (!profile) {
@@ -80,27 +81,62 @@ export const update = mutation({
   },
 });
 
-export const list = query({
-  handler: async (ctx) => {
-    const { profile } = await requireProfile(ctx);
+export const remove = mutation({
+  args: {
+    id: v.id("mediaItems"),
+  },
+  handler: async (ctx, args) => {
+    const { userId } = await requireProfile(ctx);
     
-    const items = await ctx.db
-      .query("mediaItems")
-      .order("desc")
+    const item = await ctx.db.get(args.id);
+    if (!item || item.authorId !== userId) {
+      throw new Error("Media item not found or access denied");
+    }
+
+    // Delete associated comments first
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_target", (q: any) => 
+        q.eq("targetType", "media").eq("targetId", args.id)
+      )
       .collect();
     
-    // Filter items based on visibility, showing all items that don't have visibility set
-    const visibleItems = items.filter(item => 
+    for (const comment of comments) {
+      await ctx.db.delete(comment._id);
+    }
+    
+    // Delete the media item
+    await ctx.db.delete(args.id);
+  },
+});
+
+export const list = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const { profile } = await requireProfile(ctx);
+    
+    const result = await ctx.db
+      .query("mediaItems")
+      .order("desc")
+      .paginate(args.paginationOpts);
+    
+    // Filter items based on visibility
+    const visibleItems = result.page.filter(item => 
       !item.visibleTo || item.visibleTo.includes(profile.relationship)
     );
     
-    return Promise.all(
+    const itemsWithUrls = await Promise.all(
       visibleItems.map(async (item) => ({
         ...item,
         url: await ctx.storage.getUrl(item.storageId),
-        // Provide default visibility if not set
         visibleTo: item.visibleTo || relationshipTypes,
       }))
     );
+
+    return {
+      page: itemsWithUrls,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });

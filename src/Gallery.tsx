@@ -1,10 +1,11 @@
-import { useMutation, useQuery } from "convex/react";
+import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useState } from "react";
 import { Comments } from "./components/Comments";
 import { Id } from "../convex/_generated/dataModel";
 import { toast } from "sonner";
 
+type Relationship = typeof relationshipTypes[number];
 const relationshipTypes = [
   "Friend",
   "Partner",
@@ -15,33 +16,44 @@ const relationshipTypes = [
   "School",
 ] as const;
 
-type Relationship = typeof relationshipTypes[number];
-
-type UploadState = {
+type UploadState = null | {
   file: File;
-  caption: string;
-} | null;
+  title: string;
+  caption?: string;
+  visibleTo: Relationship[];
+};
 
 export default function Gallery() {
-  const media = useQuery(api.media.list);
+  const { results: media, status, loadMore } = usePaginatedQuery(
+    api.media.list,
+    { paginationOpts: { numItems: 20 } },
+    { initialNumItems: 20 }
+  );
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
   const createMedia = useMutation(api.media.create);
+  const deleteMedia = useMutation(api.media.remove);
   const profile = useQuery(api.profiles.getCurrentProfile);
+  const user = useQuery(api.auth.loggedInUser);
   const [uploading, setUploading] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<number | null>(null);
   const [selectedRelationships, setSelectedRelationships] = useState<Relationship[]>([...relationshipTypes]);
   const [uploadState, setUploadState] = useState<UploadState>(null);
-  
+
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadState({ file, caption: "" });
+
+    setUploadState({
+      file,
+      title: file.name,
+      visibleTo: [...relationshipTypes],
+    });
   }
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!uploadState) return;
-    
+
     try {
       setUploading(true);
       const postUrl = await generateUploadUrl();
@@ -50,13 +62,16 @@ export default function Gallery() {
         headers: { "Content-Type": uploadState.file.type },
         body: uploadState.file,
       });
+      if (!result.ok) {
+        throw new Error("Failed to upload file");
+      }
       const { storageId } = await result.json();
       await createMedia({
-        title: uploadState.file.name,
+        title: uploadState.title,
+        caption: uploadState.caption,
         type: uploadState.file.type.startsWith("image/") ? "image" : "video",
         storageId,
-        visibleTo: selectedRelationships,
-        caption: uploadState.caption,
+        visibleTo: uploadState.visibleTo,
       });
       setUploadState(null);
       toast.success("Media uploaded successfully!");
@@ -68,13 +83,17 @@ export default function Gallery() {
     }
   }
 
-  const toggleRelationship = (relationship: Relationship) => {
-    setSelectedRelationships(prev => 
-      prev.includes(relationship)
-        ? prev.filter(r => r !== relationship)
-        : [...prev, relationship]
-    );
-  };
+  async function handleDelete(mediaId: Id<"mediaItems">) {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    
+    try {
+      await deleteMedia({ id: mediaId });
+      toast.success("Media deleted successfully!");
+    } catch (error) {
+      toast.error("Failed to delete media");
+      console.error(error);
+    }
+  }
 
   if (!profile) {
     return (
@@ -87,187 +106,184 @@ export default function Gallery() {
     );
   }
 
-  const handlePrevious = () => {
-    if (selectedMedia !== null && media && selectedMedia > 0) {
-      setSelectedMedia(selectedMedia - 1);
-    }
-  };
-
-  const handleNext = () => {
-    if (selectedMedia !== null && media && selectedMedia < media.length - 1) {
-      setSelectedMedia(selectedMedia + 1);
-    }
-  };
-  
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex flex-col gap-4 mb-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-emerald-800">Photographs & Videos</h1>
-          <label className="bg-emerald-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-emerald-700">
-            Select Media
-            <input
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleFileSelect}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
-        </div>
-        
-        {uploadState && (
-          <form onSubmit={handleUpload} className="bg-gray-50 p-4 rounded-lg space-y-4">
+      <h1 className="text-3xl font-bold text-emerald-800 mb-8">Photographs & Videos</h1>
+
+      {uploadState ? (
+        <form onSubmit={handleUpload} className="mb-8 p-4 bg-gray-50 rounded-lg">
+          <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Selected file: {uploadState.file.name}</h3>
+              <label className="block text-sm font-medium text-gray-700">Title</label>
               <input
                 type="text"
-                value={uploadState.caption}
-                onChange={(e) => setUploadState({ ...uploadState, caption: e.target.value })}
-                placeholder="Add a caption (optional)"
-                className="w-full p-2 border rounded"
+                value={uploadState.title}
+                onChange={(e) => setUploadState({ ...uploadState, title: e.target.value })}
+                className="mt-1 w-full p-2 border rounded"
+                required
               />
             </div>
-            
             <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Who can view this media?</h3>
-              <div className="flex flex-wrap gap-2">
-                {relationshipTypes.map(relationship => (
-                  <button
-                    key={relationship}
-                    type="button"
-                    onClick={() => toggleRelationship(relationship)}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      selectedRelationships.includes(relationship)
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {relationship}
-                  </button>
+              <label className="block text-sm font-medium text-gray-700">Caption (optional)</label>
+              <input
+                type="text"
+                value={uploadState.caption || ""}
+                onChange={(e) => setUploadState({ ...uploadState, caption: e.target.value })}
+                className="mt-1 w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Visible to</label>
+              <div className="mt-2 space-x-2">
+                {relationshipTypes.map((type) => (
+                  <label key={type} className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={uploadState.visibleTo.includes(type)}
+                      onChange={(e) => {
+                        const newVisibleTo = e.target.checked
+                          ? [...uploadState.visibleTo, type]
+                          : uploadState.visibleTo.filter((t) => t !== type);
+                        setUploadState({ ...uploadState, visibleTo: newVisibleTo });
+                      }}
+                      className="mr-1"
+                    />
+                    <span className="text-sm text-gray-600">{type}</span>
+                  </label>
                 ))}
               </div>
             </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="submit"
+              disabled={uploading}
+              className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {uploading ? "Uploading..." : "Upload"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadState(null)}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <label className="block mb-8">
+          <div className="p-8 border-2 border-dashed rounded-lg text-center cursor-pointer hover:bg-gray-50">
+            <div className="text-gray-600">Click to upload photos or videos</div>
+            <div className="text-sm text-gray-500 mt-1">or drag and drop</div>
+          </div>
+          <input
+            type="file"
+            accept="image/*,video/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </label>
+      )}
 
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setUploadState(null)}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={uploading}
-                className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {uploading ? "Uploading..." : "Upload"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-      
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {media?.map((item, index) => (
-          <div 
-            key={item._id}
-            onClick={() => setSelectedMedia(index)}
-            className="aspect-square relative overflow-hidden rounded-lg cursor-pointer group"
-          >
-            {item.type === "image" ? (
-              <img 
-                src={item.url || undefined} 
-                alt={item.title} 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <video 
-                src={item.url || undefined} 
-                className="w-full h-full object-cover" 
-                muted 
-                loop 
-                playsInline
-                onMouseEnter={e => e.currentTarget.play()}
-                onMouseLeave={e => e.currentTarget.pause()}
-              />
-            )}
-            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity" />
-            {item.caption && (
-              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
-                <p className="text-white text-sm">{item.caption}</p>
-              </div>
+          <div key={item._id} className="relative group">
+            <div 
+              onClick={() => setSelectedMedia(index)}
+              className="aspect-square rounded-lg overflow-hidden cursor-pointer bg-gray-100"
+            >
+              {item.type === "image" ? (
+                <img
+                  src={item.url || undefined}
+                  alt={item.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <video
+                  src={item.url || undefined}
+                  className="w-full h-full object-cover"
+                />
+              )}
+              {item.caption && (
+                <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {item.caption}
+                </div>
+              )}
+            </div>
+            {item.authorId === user?._id && (
+              <button
+                onClick={() => handleDelete(item._id)}
+                className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Delete"
+              >
+                ×
+              </button>
             )}
           </div>
         ))}
       </div>
 
-      {/* Full Screen Modal */}
-      {selectedMedia !== null && media && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-          <button 
-            onClick={() => setSelectedMedia(null)}
-            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300"
-          >
-            ×
-          </button>
-          
+      {status === "CanLoadMore" && (
+        <div className="mt-8 flex justify-center">
           <button
-            onClick={handlePrevious}
-            disabled={selectedMedia === 0}
-            className="absolute left-4 text-white text-4xl hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            onClick={() => loadMore(20)}
+            className="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700"
           >
-            ‹
+            Load More
           </button>
-          
-          <button
-            onClick={handleNext}
-            disabled={selectedMedia === media.length - 1}
-            className="absolute right-4 text-white text-4xl hover:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            ›
-          </button>
+        </div>
+      )}
 
-          <div className="max-w-7xl max-h-[90vh] w-full mx-8 flex flex-col">
-            <div className="flex-1 flex items-center justify-center min-h-0">
+      {status === "LoadingMore" && (
+        <div className="mt-8 flex justify-center">
+          <div className="bg-emerald-100 text-emerald-800 px-6 py-2 rounded-full">
+            Loading...
+          </div>
+        </div>
+      )}
+
+      {selectedMedia !== null && media && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+          <div className="max-w-4xl w-full mx-4 bg-white rounded-lg overflow-hidden">
+            <div className="relative">
               {media[selectedMedia].type === "image" ? (
                 <img
                   src={media[selectedMedia].url || undefined}
                   alt={media[selectedMedia].title}
-                  className="max-h-full max-w-full object-contain"
+                  className="w-full"
                 />
               ) : (
                 <video
                   src={media[selectedMedia].url || undefined}
                   controls
-                  autoPlay
-                  className="max-h-full max-w-full"
+                  className="w-full"
                 />
               )}
-            </div>
-            
-            <div className="mt-4 bg-black/50 p-4 rounded-lg">
-              <h3 className="text-white text-lg font-semibold mb-2">
-                {media[selectedMedia].title}
-              </h3>
-              {media[selectedMedia].caption && (
-                <p className="text-gray-200 mb-4">{media[selectedMedia].caption}</p>
+              <button
+                onClick={() => setSelectedMedia(null)}
+                className="absolute top-4 right-4 text-white bg-black/50 w-8 h-8 rounded-full flex items-center justify-center"
+              >
+                ×
+              </button>
+              {media[selectedMedia].authorId === user?._id && (
+                <button
+                  onClick={() => {
+                    handleDelete(media[selectedMedia]._id);
+                    setSelectedMedia(null);
+                  }}
+                  className="absolute top-4 right-16 text-white bg-red-600 px-3 py-1 rounded"
+                >
+                  Delete
+                </button>
               )}
-              <div className="mb-4">
-                <h4 className="text-gray-300 text-sm mb-2">Visible to:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {media[selectedMedia].visibleTo?.map(relationship => (
-                    <span key={relationship} className="px-2 py-1 bg-gray-700 text-white rounded-full text-xs">
-                      {relationship}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <Comments 
-                targetType="media" 
-                targetId={media[selectedMedia]._id as Id<"mediaItems">} 
-              />
+            </div>
+            <div className="p-4">
+              <h3 className="text-lg font-semibold">{media[selectedMedia].title}</h3>
+              {media[selectedMedia].caption && (
+                <p className="text-gray-600 mt-1">{media[selectedMedia].caption}</p>
+              )}
+              <Comments targetType="media" targetId={media[selectedMedia]._id} />
             </div>
           </div>
         </div>

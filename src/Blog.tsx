@@ -1,66 +1,262 @@
-import { useMutation, useQuery } from "convex/react";
+import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { Comments } from "./components/Comments";
+import { Id } from "../convex/_generated/dataModel";
+import { toast } from "sonner";
+
+function MenuBar({ editor }: { editor: any }) {
+  if (!editor) {
+    return null;
+  }
+
+  return (
+    <div className="border-b p-2 flex flex-wrap gap-2">
+      <button
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        disabled={!editor.can().chain().focus().toggleBold().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("bold") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        bold
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        disabled={!editor.can().chain().focus().toggleItalic().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("italic") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        italic
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleStrike().run()}
+        disabled={!editor.can().chain().focus().toggleStrike().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("strike") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        strike
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleCode().run()}
+        disabled={!editor.can().chain().focus().toggleCode().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("code") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        code
+      </button>
+      <button
+        onClick={() => editor.chain().focus().setParagraph().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("paragraph") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        paragraph
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("heading", { level: 1 }) ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        h1
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("heading", { level: 2 }) ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        h2
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("heading", { level: 3 }) ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        h3
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("bulletList") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        bullet list
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("orderedList") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        ordered list
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("codeBlock") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        code block
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        className={`px-2 py-1 rounded ${
+          editor.isActive("blockquote") ? "bg-emerald-600 text-white" : "hover:bg-gray-100"
+        }`}
+      >
+        blockquote
+      </button>
+      <button
+        onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        className="px-2 py-1 rounded hover:bg-gray-100"
+      >
+        horizontal rule
+      </button>
+      <button
+        onClick={() => editor.chain().focus().undo().run()}
+        disabled={!editor.can().chain().focus().undo().run()}
+        className="px-2 py-1 rounded hover:bg-gray-100"
+      >
+        undo
+      </button>
+      <button
+        onClick={() => editor.chain().focus().redo().run()}
+        disabled={!editor.can().chain().focus().redo().run()}
+        className="px-2 py-1 rounded hover:bg-gray-100"
+      >
+        redo
+      </button>
+    </div>
+  );
+}
+
+function PostContent({ content }: { content: any }) {
+  const editor = useEditor({
+    extensions: [StarterKit, Image],
+    content,
+    editable: false,
+  });
+  return <EditorContent editor={editor} />;
+}
 
 export default function Blog() {
-  const posts = useQuery(api.posts.list);
+  const { results: posts, status, loadMore } = usePaginatedQuery(
+    api.posts.list,
+    { paginationOpts: { numItems: 20 } },
+    { initialNumItems: 20 }
+  );
   const createPost = useMutation(api.posts.create);
+  const deletePost = useMutation(api.posts.remove);
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
   const profile = useQuery(api.profiles.getCurrentProfile);
+  const user = useQuery(api.auth.loggedInUser);
   const [title, setTitle] = useState("");
   const [uploading, setUploading] = useState(false);
-  
+
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Image,
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+      }),
     ],
     content: "",
   });
 
-  const addImage = useCallback(async (file: File) => {
-    if (!editor) return;
-    
-    try {
-      setUploading(true);
-      const postUrl = await generateUploadUrl();
-      const result = await fetch(postUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      const { storageId } = await result.json();
-      
-      // Get the URL for the uploaded image
-      const url = await fetch(`/api/storage/${storageId}`).then(r => r.text());
-      
-      // Add image to editor
-      editor.chain().focus().setImage({ src: url }).run();
-    } finally {
-      setUploading(false);
-    }
-  }, [editor, generateUploadUrl]);
-  
+  const addImage = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+
+      try {
+        setUploading(true);
+        const postUrl = await generateUploadUrl();
+        const result = await fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!result.ok) {
+          throw new Error("Failed to upload image");
+        }
+        const { storageId } = await result.json();
+        const url = await fetch(`/api/storage/${storageId}`).then((r) => r.text());
+        editor.chain().focus().setImage({ src: url }).run();
+      } catch (error) {
+        console.error("Failed to upload image:", error);
+        toast.error("Failed to upload image");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [editor, generateUploadUrl]
+  );
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const file = event.dataTransfer?.files[0];
+      if (file && file.type.startsWith("image/")) {
+        addImage(file);
+      }
+    },
+    [addImage]
+  );
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLDivElement>) => {
+      const file = event.clipboardData?.files[0];
+      if (file && file.type.startsWith("image/")) {
+        event.preventDefault();
+        addImage(file);
+      }
+    },
+    [addImage]
+  );
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title || !editor?.getJSON()) return;
-    
-    const json = editor.getJSON();
-    await createPost({ 
-      title, 
-      content: {
-        type: "doc",
-        content: json.content || [],
-      }
-    });
-    setTitle("");
-    editor.commands.setContent("");
+    if (!editor || !title.trim()) return;
+
+    try {
+      const content = editor.getJSON();
+      await createPost({
+        title,
+        content: {
+          type: "doc",
+          content: content.content || [],
+        },
+      });
+      setTitle("");
+      editor.commands.setContent("");
+      toast.success("Post created successfully!");
+    } catch (error) {
+      toast.error("Failed to create post");
+      console.error(error);
+    }
   }
-  
+
+  async function handleDelete(postId: Id<"posts">) {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    
+    try {
+      await deletePost({ id: postId });
+      toast.success("Post deleted successfully!");
+    } catch (error) {
+      toast.error("Failed to delete post");
+      console.error(error);
+    }
+  }
+
   if (!profile) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -71,118 +267,89 @@ export default function Blog() {
       </div>
     );
   }
-  
+
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-emerald-800 mb-8">Memories</h1>
-      
+
       <form onSubmit={handleSubmit} className="mb-12 space-y-4">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Title"
-          className="w-full p-2 border rounded"
+          className="w-full p-2 border rounded text-lg"
+          required
         />
-        <div className="border rounded p-2">
-          <div className="border-b pb-2 mb-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-              className={`p-2 rounded ${editor?.isActive('bold') ? 'bg-gray-200' : ''}`}
-            >
-              Bold
-            </button>
-            <button
-              type="button"
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-              className={`p-2 rounded ${editor?.isActive('italic') ? 'bg-gray-200' : ''}`}
-            >
-              Italic
-            </button>
-            <label className="p-2 rounded bg-emerald-600 text-white cursor-pointer">
-              Add Image
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) addImage(file);
-                }}
-                className="hidden"
-                disabled={uploading}
-              />
-            </label>
+        <div className="border rounded overflow-hidden">
+          <MenuBar editor={editor} />
+          <div
+            className="relative"
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onPaste={handlePaste}
+          >
+            {uploading && (
+              <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                Uploading image...
+              </div>
+            )}
+            <EditorContent editor={editor} className="prose max-w-none p-4" />
           </div>
-          <EditorContent editor={editor} className="min-h-[200px] prose max-w-none" />
         </div>
-        <button
-          type="submit"
-          className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700"
-          disabled={!title || !editor?.getHTML()}
-        >
-          Share Memory
-        </button>
+        <div className="flex justify-end gap-4">
+          <button
+            type="submit"
+            disabled={!title.trim() || !editor?.getText().trim()}
+            className="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700 disabled:opacity-50"
+          >
+            Share Memory
+          </button>
+        </div>
       </form>
-      
+
       <div className="space-y-8">
         {posts?.map((post) => (
-          <PostCard key={post._id} post={post} />
+          <article key={post._id} className="border rounded-lg overflow-hidden">
+            <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+              <h2 className="text-xl font-semibold">{post.title}</h2>
+              {post.authorId === user?._id && (
+                <button
+                  onClick={() => handleDelete(post._id)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="prose max-w-none p-4">
+              <PostContent content={post.content} />
+            </div>
+            <div className="border-t">
+              <Comments targetType="post" targetId={post._id} />
+            </div>
+          </article>
         ))}
       </div>
-    </div>
-  );
-}
 
-function PostCard({ post }: { post: any }) {
-  const profile = useQuery(api.profiles.get, { userId: post.authorId });
-  
-  return (
-    <article className="border rounded-lg p-6">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-          {profile?.pictureUrl ? (
-            <img 
-              src={profile.pictureUrl} 
-              alt="Author" 
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              ?
-            </div>
-          )}
+      {status === "CanLoadMore" && (
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => loadMore(20)}
+            className="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700"
+          >
+            Load More
+          </button>
         </div>
-        <div>
-          <div className="text-sm font-medium">{profile?.name ?? "Anonymous"}</div>
-          <div className="text-sm text-gray-600">
-            {profile?.relationship ?? "Friend"} of Emily
+      )}
+
+      {status === "LoadingMore" && (
+        <div className="mt-8 flex justify-center">
+          <div className="bg-emerald-100 text-emerald-800 px-6 py-2 rounded-full">
+            Loading...
           </div>
-          <time className="text-sm text-gray-500">
-            {new Date(post.createdAt).toLocaleDateString()}
-          </time>
         </div>
-      </div>
-      <h2 className="text-2xl font-bold mb-2">{post.title}</h2>
-      <div 
-        className="prose text-gray-600"
-        dangerouslySetInnerHTML={{ 
-          __html: post.content.content
-            .map((node: any) => {
-              if (node.type === 'paragraph') {
-                return `<p>${node.content?.map((c: any) => {
-                  if (c.type === 'text') return c.text;
-                  if (c.type === 'image') return `<img src="${c.attrs.src}" alt="${c.attrs.alt || ''}" />`;
-                  return '';
-                }).join('')}</p>`;
-              }
-              return '';
-            })
-            .join('')
-        }}
-      />
-
-      <Comments targetType="post" targetId={post._id} />
-    </article>
+      )}
+    </div>
   );
 }
