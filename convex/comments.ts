@@ -26,6 +26,25 @@ export const create = mutation({
   },
 });
 
+export const remove = mutation({
+  args: {
+    id: v.id("comments"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const comment = await ctx.db.get(args.id);
+    if (!comment) throw new Error("Comment not found");
+    
+    if (comment.authorId !== userId) {
+      throw new Error("Not authorized to delete this comment");
+    }
+
+    await ctx.db.delete(args.id);
+  },
+});
+
 export const list = query({
   args: {
     targetType: v.union(v.literal("post"), v.literal("media")),

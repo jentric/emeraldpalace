@@ -1,9 +1,15 @@
-const {} = require("tailwindcss/defaultTheme");
-
-module.exports = {
-  mode: "jit",
-  purge: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
-  variants: {
-    extend: {},
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Verdana', 'sans-serif'],
+      },
+    },
   },
-};
+  plugins: [],
+}
