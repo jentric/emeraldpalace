@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
 import { Comments } from "./components/Comments";
 import { Id } from "../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -177,6 +178,9 @@ export default function Blog() {
         inline: true,
         allowBase64: true,
       }),
+      Placeholder.configure({
+        placeholder: 'Share your words',
+      }),
     ],
     content: "",
   });
@@ -278,7 +282,8 @@ export default function Blog() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-emerald-800 mb-8">Memories</h1>
+      <h1 className="text-3xl font-bold text-emerald-800 mb-2">Memories</h1>
+      <p className="text-gray-600 mb-8">Share some words, a story, or a memory here.</p>
 
       <div className="mb-12 space-y-4">
         <input

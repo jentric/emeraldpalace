@@ -245,26 +245,26 @@ export default function Gallery() {
 
       {selectedMedia !== null && media && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-          <div className="max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden flex flex-col">
-            <div className="relative flex-shrink-0">
-              <div className="max-h-[70vh] overflow-hidden">
+          <div className="w-full h-full max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden flex flex-col">
+            <div className="relative flex-1 min-h-0">
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
                 {media[selectedMedia].type === "image" ? (
                   <img
                     src={media[selectedMedia].url || undefined}
                     alt={media[selectedMedia].title}
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
                   />
                 ) : (
                   <video
                     src={media[selectedMedia].url || undefined}
                     controls
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
                   />
                 )}
               </div>
               <button
                 onClick={() => setSelectedMedia(null)}
-                className="absolute top-4 right-4 text-white bg-black/50 w-8 h-8 rounded-full flex items-center justify-center"
+                className="absolute top-4 right-4 text-white bg-black/50 w-8 h-8 rounded-full flex items-center justify-center z-10"
               >
                 ×
               </button>
@@ -274,13 +274,13 @@ export default function Gallery() {
                     handleDelete(media[selectedMedia]._id);
                     setSelectedMedia(null);
                   }}
-                  className="absolute top-4 right-16 text-white bg-red-600 px-3 py-1 rounded"
+                  className="absolute top-4 right-16 text-white bg-red-600 px-3 py-1 rounded z-10"
                 >
                   Delete
                 </button>
               )}
             </div>
-            <div className="p-4 overflow-y-auto">
+            <div className="p-4 border-t bg-white">
               <h3 className="text-lg font-semibold">{media[selectedMedia].title}</h3>
               {media[selectedMedia].caption && (
                 <p className="text-gray-600 mt-1">{media[selectedMedia].caption}</p>
