@@ -24,15 +24,15 @@ type UploadState = null | {
 };
 
 export default function Gallery() {
+  const profile = useQuery(api.profiles.getCurrentProfile);
   const { results: media, status, loadMore } = usePaginatedQuery(
     api.media.list,
-    { paginationOpts: { numItems: 15 } },
+    profile ? { paginationOpts: { numItems: 15 } } : "skip",
     { initialNumItems: 15 }
   );
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
   const createMedia = useMutation(api.media.create);
   const deleteMedia = useMutation(api.media.remove);
-  const profile = useQuery(api.profiles.getCurrentProfile);
   const user = useQuery(api.auth.loggedInUser);
   const [uploading, setUploading] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<number | null>(null);

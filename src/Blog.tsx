@@ -158,15 +158,15 @@ function AuthorInfo({ userId }: { userId: Id<"users"> }) {
 }
 
 export default function Blog() {
+  const profile = useQuery(api.profiles.getCurrentProfile);
   const { results: posts, status, loadMore } = usePaginatedQuery(
     api.posts.list,
-    { paginationOpts: { numItems: 20 } },
+    profile ? { paginationOpts: { numItems: 20 } } : "skip",
     { initialNumItems: 20 }
   );
   const createPost = useMutation(api.posts.create);
   const deletePost = useMutation(api.posts.remove);
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
-  const profile = useQuery(api.profiles.getCurrentProfile);
   const user = useQuery(api.auth.loggedInUser);
   const [title, setTitle] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -339,7 +339,7 @@ export default function Blog() {
               </div>
               <h2 className="text-xl font-semibold">{post.title}</h2>
               <div className="text-sm text-gray-500 mt-1">
-                {new Date(post.createdAt).toLocaleDateString()}
+                {new Date(post._creationTime).toLocaleDateString()}
               </div>
             </div>
             <div className="prose max-w-none p-4">

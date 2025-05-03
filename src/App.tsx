@@ -24,7 +24,10 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-10 bg-emerald-800/90 text-white backdrop-blur-sm p-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold">Emerald Palace</h2>
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="Emerald Palace" className="w-8 h-8" />
+            <h2 className="text-2xl font-semibold">Emerald Palace</h2>
+          </div>
           
           {/* Hamburger button - only visible below 600px */}
           <button 
@@ -82,6 +85,9 @@ export default function App() {
       <main className="flex-1 p-8">
         <Unauthenticated>
           <div className="max-w-md mx-auto">
+            <div className="flex justify-center mb-8">
+              <img src="/logo.svg" alt="Emerald Palace" className="w-20 h-20" />
+            </div>
             <h1 className="text-4xl font-bold text-center mb-8 text-emerald-800">Welcome to Emerald Palace</h1>
             <p className="text-center text-gray-600 mb-8">
               Please sign in with your username and password to access your personal digital palace.
