@@ -29,9 +29,10 @@ export default function App() {
           {/* Hamburger button - only visible below 600px */}
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="@[600px]:hidden p-2 hover:bg-emerald-700 rounded"
+            className="@[600px]:hidden p-2 hover:bg-emerald-700 rounded flex items-center gap-2"
             aria-label="Toggle menu"
           >
+            <span>Menu</span>
             <div className="w-6 h-5 relative flex flex-col justify-between">
               <span className={`block h-0.5 w-full bg-white transform transition-transform ${isMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
               <span className={`block h-0.5 w-full bg-white transition-opacity ${isMenuOpen ? 'opacity-0' : ''}`} />

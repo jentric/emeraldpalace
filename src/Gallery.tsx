@@ -26,8 +26,8 @@ type UploadState = null | {
 export default function Gallery() {
   const { results: media, status, loadMore } = usePaginatedQuery(
     api.media.list,
-    { paginationOpts: { numItems: 20 } },
-    { initialNumItems: 20 }
+    { paginationOpts: { numItems: 15 } },
+    { initialNumItems: 15 }
   );
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
   const createMedia = useMutation(api.media.create);
@@ -186,7 +186,7 @@ export default function Gallery() {
         </label>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {media?.map((item, index) => (
           <div key={item._id} className="relative group">
             <div 
@@ -227,7 +227,7 @@ export default function Gallery() {
       {status === "CanLoadMore" && (
         <div className="mt-8 flex justify-center">
           <button
-            onClick={() => loadMore(20)}
+            onClick={() => loadMore(15)}
             className="bg-emerald-600 text-white px-6 py-2 rounded-full hover:bg-emerald-700"
           >
             Load More
