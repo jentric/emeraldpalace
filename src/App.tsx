@@ -90,7 +90,7 @@ export default function App() {
             </div>
             <h1 className="text-4xl font-bold text-center mb-8 text-emerald-800">Welcome to Emerald Palace</h1>
             <p className="text-center text-gray-600 mb-8">
-              Please sign in with your username and password to access your personal digital palace.
+              Save your profile by signing up with an email and make a password. Otherwise, sign in anonymously without an email.
             </p>
             <SignInForm />
           </div>
