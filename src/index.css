@@ -11,29 +11,80 @@
   @apply text-slate-600;
 }
 
+/* Glassmorphism tokens and utilities */
+:root {
+  --glass-bg: rgba(12, 12, 18, 0.55); /* darker + more opaque */
+  --glass-blur: 18px;
+  --glass-border: 1px;
+  --glass-border-color: rgba(255, 255, 255, 0.35); /* stronger edge */
+  --glass-shadow: 0 12px 32px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255,255,255,0.08);
+  --glass-hover: rgba(255, 255, 255, 0.12); /* higher hover contrast */
+}
+
+.glass-elevated {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border) solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-overlay {
+  background: rgba(8, 8, 12, 0.65); /* higher-contrast overlay */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Pill buttons for header nav and actions */
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  color: #fff;
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  transition: background-color 120ms ease, transform 80ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+.pill-link:hover {
+  background-color: var(--glass-hover);
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,0.2);
+}
+.pill-link.primary {
+  border-color: rgba(16,185,129,0.35); /* emerald-ish */
+  background: linear-gradient(180deg, rgba(16,185,129,0.25), rgba(16,185,129,0.12));
+}
+.pill-link.subtle {
+  opacity: 0.9;
+}
+
 .button {
   @apply bg-gradient-to-r bg-blue-500;
 }
 
 body {
-  font-family:
-    "Inter Variable",
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    "Noto Sans",
-    sans-serif,
-    "Apple Color Emoji",
-    "Segoe UI Emoji",
-    "Segoe UI Symbol",
-    "Noto Color Emoji";
+   font-family:
+     "Inter Variable",
+     ui-sans-serif,
+     system-ui,
+     -apple-system,
+     BlinkMacSystemFont,
+     "Segoe UI",
+     Roboto,
+     "Helvetica Neue",
+     Arial,
+     "Noto Sans",
+     sans-serif,
+     "Apple Color Emoji",
+     "Segoe UI Emoji",
+     "Segoe UI Symbol",
+     "Noto Color Emoji";
   color: var(--color-dark);
   background: var(--color-light);
+  font-size: 16pt; /* base typography size per new design */
 }
 
 .input-field {
@@ -46,4 +97,135 @@ body {
 
 .link-text {
   @apply text-blue-500 hover:underline cursor-pointer font-medium;
+}
+
+/* Modern auth form */
+.modern-input {
+  @apply w-full px-3 py-3 rounded-xl bg-white/70 dark:bg-white/5 border border-slate-200/70 dark:border-slate-700/60 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500 text-sm transition-colors placeholder-transparent;
+}
+
+.floating-label {
+  /* Base = floated position; placeholder-shown pulls it back down */
+  @apply pointer-events-none absolute left-3 top-2 -translate-y-0 text-xs text-slate-500 transition-all duration-200 font-medium bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent;
+  @apply peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:text-sm;
+  @apply peer-[&:not(:placeholder-shown)]:top-2 peer-[&:not(:placeholder-shown)]:-translate-y-0 peer-[&:not(:placeholder-shown)]:text-xs;
+  @apply peer-focus:top-2 peer-focus:-translate-y-0 peer-focus:text-xs peer-focus:text-emerald-600;
+}
+
+.modern-primary-btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-medium py-3 px-4 text-sm shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all;
+}
+
+@layer utilities {
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+}
+
+/* Fallback for browsers / Tailwind configs without arbitrary not(:placeholder-shown) */
+.modern-input.has-value ~ .floating-label {
+  @apply top-2 -translate-y-0 text-xs;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+  background-size: 400px 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+/* Background video + controls */
+.ep-bg-video-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0; /* below app content (z-index: 1), above body background */
+  pointer-events: none; /* don't block clicks */
+  transition: opacity 400ms ease;
+  background: transparent;
+}
+
+.ep-bg-video-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.15) brightness(1.03); /* +15% contrast, +3% brightness (lift blacks slightly) */
+  display: block;
+}
+
+.ep-bg-controls {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  z-index: 9999; /* highest so it floats above UI */
+  pointer-events: auto; /* interactive */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 9999px;
+  background: rgba(17, 24, 39, 0.55); /* slate-900/55 */
+  color: #fff;
+  backdrop-filter: saturate(1.2) blur(8px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.ep-bg-btn {
+  all: unset;
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(255,255,255,0.08);
+}
+.ep-bg-btn:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.9); /* emerald-500 */
+  outline-offset: 2px;
+}
+
+.ep-bg-filename {
+  max-width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+.ep-bg-marquee {
+  display: inline-block;
+  padding-left: 100%;
+  animation: ep-marquee 12s linear infinite;
+}
+
+@keyframes ep-marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* High-visibility focus outlines for light backgrounds */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3pt solid #111; /* dark outline for contrast */
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.ep-bg-volume {
+  width: 110px;
+  accent-color: #10b981; /* emerald-500 */
+}
+
+@media (max-width: 480px) {
+  .ep-bg-filename { max-width: 120px; }
+  .ep-bg-volume { width: 80px; }
 }

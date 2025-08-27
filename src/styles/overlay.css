@@ -1,0 +1,45 @@
+/* Global background transparency so video shows through */
+html, body, #root {
+  background: transparent !important;
+}
+
+/* Common structural containers */
+main, header, footer, section, article, aside, nav {
+  background: transparent !important;
+}
+
+/* Soft pastel pink for interactive surfaces */
+:root {
+  --pastel-pink: #ffe6f2;
+}
+
+/* Cards (generic class names; adjust if your project uses different) */
+.card, .Card {
+  background-color: var(--pastel-pink) !important;
+}
+
+/* Buttons */
+button, .btn, .Button {
+  background-color: var(--pastel-pink) !important;
+  color: #000 !important;                /* black text */
+  border: 2pt solid #000 !important;     /* 2pt black outline */
+  border-radius: 12pt !important;       /* increased corner curve */
+  padding: 6pt !important;             /* comfortable hit area */
+}
+
+/* Also apply to links styled as buttons and pill buttons */
+a.button, a.btn, a.Button,
+[role="button"],
+.pill-link,
+.modern-primary-btn {
+  background: var(--pastel-pink) !important;  /* override gradients */
+  color: #000 !important;                      /* black text */
+  border: 2pt solid #000 !important;           /* 2pt black outline */
+  border-radius: 12pt !important;             /* increased corner curve */
+  padding: 6pt !important;                   /* comfortable hit area */
+}
+
+/* Ensure transparent panels/containers don’t block video visuals */
+.panel, .container, .content, .shell, .app-shell, .wrapper {
+  background: transparent !important;
+}

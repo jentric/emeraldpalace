@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import OnboardingFlow from "./components/OnboardingFlow";
 
 const relationships = [
   "Friend",
@@ -33,6 +34,10 @@ export function Profile() {
   }, [profile]);
 
   if (!user) return null;
+
+  if (!profile) {
+    return <OnboardingFlow onComplete={() => { /* query will refresh and page will render profile */ }} />;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,19 +87,19 @@ export function Profile() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-12 text-center">
-        <h1 className="text-3xl font-bold text-emerald-800 mb-4">
-          {profile?.name ? `Welcome, ${profile.name}!` : "Complete Your Profile"}
-        </h1>
-        <p className="text-gray-600">
-          {profile?.name 
-            ? `You're connected as a ${profile.relationship.toLowerCase()} of Emily.`
-            : "Tell us about yourself and your connection to Emily."}
-        </p>
-      </div>
+    <div className="max-w-3xl mx-auto p-6 glass-elevated rounded-2xl text-white/95 shadow-lg">
+       <div className="mb-12 text-center">
+         <h1 className="text-3xl font-bold mb-2">
+           {profile?.name ? `Welcome, ${profile.name}!` : "Complete Your Profile"}
+         </h1>
+         <p className="text-white/80">
+           {profile?.name 
+             ? `You're connected as a ${profile.relationship.toLowerCase()} of Emily.`
+             : "Tell us about yourself and your connection to Emily."}
+         </p>
+       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-8">
+       <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-8">
         <div>
           <h2 className="text-xl font-semibold mb-4">Profile Picture</h2>
           <div className="flex items-center gap-6">
@@ -116,7 +121,7 @@ export function Profile() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={handlePictureUpload}
+                onChange={(e) => { void handlePictureUpload(e); }}
                 disabled={uploading}
                 className="hidden"
               />
@@ -131,7 +136,7 @@ export function Profile() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter your name"
-            className="w-full p-2 border rounded"
+            className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             required
           />
         </div>
@@ -141,7 +146,7 @@ export function Profile() {
           <select
             value={relationship}
             onChange={(e) => setRelationship(e.target.value as Relationship)}
-            className="w-full p-2 border rounded"
+            className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             {relationships.map(r => (
               <option key={r} value={r}>
@@ -151,10 +156,7 @@ export function Profile() {
           </select>
         </div>
 
-        <button
-          type="submit"
-          className="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700"
-        >
+        <button type="submit" className="modern-primary-btn">
           Save Profile
         </button>
       </form>

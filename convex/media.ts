@@ -1,7 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { Doc, Id } from "./_generated/dataModel";
 import { paginationOptsValidator } from "convex/server";
 
 const relationshipTypes = [
@@ -44,6 +43,13 @@ export const create = mutation({
     type: v.union(v.literal("image"), v.literal("video")),
     storageId: v.id("_storage"),
     visibleTo: v.array(v.union(...relationshipTypes.map(r => v.literal(r)))),
+    category: v.optional(v.union(
+      v.literal("Special Moments"),
+      v.literal("Adventures"),
+      v.literal("Everyday Elegance"),
+      v.literal("Passions"),
+      v.literal("The Simple Life")
+    )),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireProfile(ctx);
@@ -56,6 +62,7 @@ export const create = mutation({
       authorId: userId,
       createdAt: Date.now(),
       visibleTo: args.visibleTo,
+      category: args.category,
     });
   },
 });
@@ -63,8 +70,16 @@ export const create = mutation({
 export const update = mutation({
   args: {
     id: v.id("mediaItems"),
+    title: v.string(),
     caption: v.string(),
     visibleTo: v.array(v.union(...relationshipTypes.map(r => v.literal(r)))),
+    category: v.optional(v.union(
+      v.literal("Special Moments"),
+      v.literal("Adventures"),
+      v.literal("Everyday Elegance"),
+      v.literal("Passions"),
+      v.literal("The Simple Life")
+    )),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireProfile(ctx);
@@ -75,8 +90,10 @@ export const update = mutation({
     }
     
     await ctx.db.patch(args.id, {
+      title: args.title,
       caption: args.caption,
       visibleTo: args.visibleTo,
+  category: args.category,
     });
   },
 });
@@ -111,7 +128,7 @@ export const remove = mutation({
 });
 
 export const list = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: { paginationOpts: paginationOptsValidator, category: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { profile } = await requireProfile(ctx);
     
@@ -124,9 +141,11 @@ export const list = query({
     const visibleItems = result.page.filter(item => 
       !item.visibleTo || item.visibleTo.includes(profile.relationship)
     );
+
+    const categoryFiltered = args.category ? visibleItems.filter(i => i.category === args.category) : visibleItems;
     
     const itemsWithUrls = await Promise.all(
-      visibleItems.map(async (item) => ({
+      categoryFiltered.map(async (item) => ({
         ...item,
         url: await ctx.storage.getUrl(item.storageId),
         visibleTo: item.visibleTo || relationshipTypes,

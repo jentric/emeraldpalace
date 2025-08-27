@@ -39,6 +39,13 @@ const applicationTables = {
     createdAt: v.number(),
     // Make visibleTo optional during migration
     visibleTo: v.optional(v.array(v.union(...relationshipTypes.map(r => v.literal(r))))),
+    category: v.optional(v.union(
+      v.literal("Special Moments"),
+      v.literal("Adventures"),
+      v.literal("Everyday Elegance"),
+      v.literal("Passions"),
+      v.literal("The Simple Life")
+    )),
   }).index("by_author", ["authorId"]),
 
   comments: defineTable({
@@ -50,6 +57,24 @@ const applicationTables = {
   })
     .index("by_target", ["targetType", "targetId"])
     .index("by_author", ["authorId"]),
+
+  mediaLikes: defineTable({
+    mediaId: v.id("mediaItems"),
+    userId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_media_user", ["mediaId", "userId"]) // for toggle lookup
+    .index("by_media", ["mediaId"]) // for counts
+    .index("by_user", ["userId"]),
+
+  mediaSaves: defineTable({
+    mediaId: v.id("mediaItems"),
+    userId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_media_user", ["mediaId", "userId"]) // for toggle lookup
+    .index("by_media", ["mediaId"]) // for counts
+    .index("by_user", ["userId"]),
 };
 
 export default defineSchema({
