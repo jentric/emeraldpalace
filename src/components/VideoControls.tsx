@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useVideo } from "./VideoContext";
 
 export default function VideoControls({ filename }: { filename: string }) {
-  const { isPlaying, play, pause, muted, setMuted, volume, setVolume } = useVideo();
+  const { isPlaying, play, pause, muted, setMuted, volume, setVolume, next, prev, currentIndex, playlist } = useVideo();
 
   // Track low-effects mode from <html class="ep-lowfx"> and stay in sync
   const [lowfx, setLowfx] = useState<boolean>(() => {
@@ -44,6 +44,28 @@ export default function VideoControls({ filename }: { filename: string }) {
         onClick={togglePlay}
       >
         {isPlaying ? "❚❚" : "▶"}
+      </button>
+
+      <button
+        type="button"
+        className="ep-bg-btn"
+        aria-label="Previous track"
+        onClick={prev}
+        disabled={playlist.length <= 1}
+        title="Previous track"
+      >
+        ⏮
+      </button>
+
+      <button
+        type="button"
+        className="ep-bg-btn"
+        aria-label="Next track"
+        onClick={next}
+        disabled={playlist.length <= 1}
+        title="Next track"
+      >
+        ⏭
       </button>
 
       <button

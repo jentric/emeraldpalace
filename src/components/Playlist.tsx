@@ -64,8 +64,16 @@ export default function Playlist() {
                   key={index}
                   onClick={() => handleSongClick(index)}
                   className={`ep-playlist-song ${index === currentIndex ? "ep-playlist-song-active" : ""}`}
-                  aria-label={`Play ${song.name}`}
+                  aria-label={`Play ${song.name.replace('.mp4', '')}`}
                   aria-current={index === currentIndex ? "true" : "false"}
+                  role="listitem"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSongClick(index);
+                    }
+                  }}
                 >
                   <div className="ep-song-info">
                     <span className="ep-song-number">{(index + 1).toString().padStart(2, '0')}</span>

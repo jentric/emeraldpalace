@@ -252,6 +252,16 @@ body {
   outline-offset: 2px;
 }
 
+.ep-bg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ep-bg-btn:disabled:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: none;
+}
+
 .ep-bg-filename {
   max-width: 220px;
   overflow: hidden;
@@ -291,12 +301,12 @@ textarea:focus-visible,
 .ep-playlist-toggle {
   position: fixed;
   bottom: 12px;
-  left: 180px;
+  left: 200px; /* Position right after the control bar */
   z-index: 9999;
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
-  border-radius: 20px;
+  padding: 6px 10px; /* Smaller padding */
+  border-radius: 16px; /* Smaller border radius */
   background: rgba(255, 255, 255, 0.9);
   color: var(--color-dark);
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -304,8 +314,9 @@ textarea:focus-visible,
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px; /* Smaller font size */
   font-weight: 500;
+  min-width: auto; /* Remove minimum width */
 }
 
 .ep-playlist-toggle:hover {
@@ -317,9 +328,9 @@ textarea:focus-visible,
 .ep-playlist-panel {
   position: fixed;
   bottom: 60px;
-  left: 12px;
+  left: 200px; /* Align with the toggle button */
   z-index: 9998;
-  width: 320px;
+  width: 300px; /* Slightly smaller width */
   max-height: 400px;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
