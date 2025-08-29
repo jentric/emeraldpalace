@@ -8,35 +8,40 @@ main, header, footer, section, article, aside, nav {
   background: transparent !important;
 }
 
-/* Soft pastel pink for interactive surfaces */
+/* Soft pastel pink for interactive surfaces (make opt-in via data-skin) */
 :root {
   --pastel-pink: #ffe6f2;
 }
 
-/* Cards (generic class names; adjust if your project uses different) */
-.card, .Card {
+/* Cards (opt-in pastel skin) */
+:root[data-skin="pastel"] .card,
+:root[data-skin="pastel"] .Card {
   background-color: var(--pastel-pink) !important;
 }
 
-/* Buttons */
-button, .btn, .Button {
+/* Buttons (opt-in pastel skin) */
+:root[data-skin="pastel"] button,
+:root[data-skin="pastel"] .btn,
+:root[data-skin="pastel"] .Button {
   background-color: var(--pastel-pink) !important;
   color: #000 !important;                /* black text */
   border: 2pt solid #000 !important;     /* 2pt black outline */
-  border-radius: 12pt !important;       /* increased corner curve */
-  padding: 6pt !important;             /* comfortable hit area */
+  border-radius: 12pt !important;        /* increased corner curve */
+  padding: 6pt !important;               /* comfortable hit area */
 }
 
-/* Also apply to links styled as buttons and pill buttons */
-a.button, a.btn, a.Button,
-[role="button"],
-.pill-link,
-.modern-primary-btn {
+/* Links styled as buttons and pill buttons (opt-in pastel skin) */
+:root[data-skin="pastel"] a.button,
+:root[data-skin="pastel"] a.btn,
+:root[data-skin="pastel"] a.Button,
+:root[data-skin="pastel"] [role="button"],
+:root[data-skin="pastel"] .pill-link,
+:root[data-skin="pastel"] .modern-primary-btn {
   background: var(--pastel-pink) !important;  /* override gradients */
   color: #000 !important;                      /* black text */
   border: 2pt solid #000 !important;           /* 2pt black outline */
-  border-radius: 12pt !important;             /* increased corner curve */
-  padding: 6pt !important;                   /* comfortable hit area */
+  border-radius: 12pt !important;              /* increased corner curve */
+  padding: 6pt !important;                     /* comfortable hit area */
 }
 
 /* Ensure transparent panels/containers don’t block video visuals */

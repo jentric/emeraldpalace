@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useVideo } from "./VideoContext";
 import { useConvexAuth } from "convex/react";
 import VideoControls from "./VideoControls";
+import Playlist from "./Playlist";
 
 function getSaveData(): boolean {
   try {
@@ -12,6 +13,9 @@ function getSaveData(): boolean {
     return false;
   }
 }
+
+// Keep only one background video playing at once across instances
+let activeBgVideo: HTMLVideoElement | null = null;
 
 export default function BackgroundVideo() {
   const {
@@ -35,6 +39,17 @@ export default function BackgroundVideo() {
   // Track whether the user has interacted (to satisfy autoplay policies when unmuted)
   const userGestureRef = useRef<boolean>(false);
 
+  // Fallback attempt tracking for variant URLs
+  const candidateIndexRef = useRef<number>(0);
+  const candidatesRef = useRef<string[]>([]);
+  const resolvedRef = useRef<boolean>(false);
+
+  // Low-effects application state
+  const lowFxAppliedRef = useRef<boolean>(false);
+
+  // Throttle sending currentTime into global state to limit re-renders
+  const lastSentTimeRef = useRef<number>(0);
+
   const [ready, setReady] = useState(false);
   const [visibleOpacity, setVisibleOpacity] = useState(0);
   const [blocked, setBlocked] = useState(false); // NotAllowedError (autoplay) fallback UI
@@ -42,8 +57,128 @@ export default function BackgroundVideo() {
   const saveData = useMemo(getSaveData, []);
   const src = playlist[currentIndex]?.url ?? "";
   const filename = playlist[currentIndex]?.name ?? "";
+
   // Debug helper
   const dbg = (...args: any[]) => console.debug("[BGV]", ...args);
+
+  // Apply/remove low-effects mode
+  const applyLowFx = (on: boolean) => {
+    if (on && !lowFxAppliedRef.current) {
+      document.documentElement.classList.add("ep-lowfx");
+      lowFxAppliedRef.current = true;
+      try { sessionStorage.setItem("ep:lowfx", "1"); } catch { /* no-op */ }
+      dbg("lowfx: enabled");
+    } else if (!on && lowFxAppliedRef.current) {
+      document.documentElement.classList.remove("ep-lowfx");
+      lowFxAppliedRef.current = false;
+      try { sessionStorage.removeItem("ep:lowfx"); } catch { /* no-op */ }
+      dbg("lowfx: disabled");
+    }
+  };
+
+  // Initialize lowfx from Data Saver or persisted preference; clean up on unmount
+  useEffect(() => {
+    let initial = false;
+    try { initial = !!sessionStorage.getItem("ep:lowfx"); } catch { /* no-op */ }
+    if (saveData) initial = true; // honor OS/browser data saver
+    applyLowFx(initial);
+    return () => applyLowFx(false);
+  }, [saveData]);
+
+  // Adaptive detection: if frame pacing is choppy, enable lowfx
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    let cancelled = false;
+
+    // Prefer requestVideoFrameCallback when available
+    const rvfc: any = (el as any).requestVideoFrameCallback;
+    const cancelRvfc: any = (el as any).cancelVideoFrameCallback;
+
+    if (typeof rvfc === "function") {
+      let handle: number | null = null;
+      let lastTs: number | undefined;
+      let spikes = 0;
+      let samples = 0;
+      const sampleSize = 120; // ~2s at 60fps
+      const spikeThresholdMs = 55; // consider frame gap > ~3 frames at 60fps
+
+      const step = (now: number) => {
+        if (cancelled) return;
+        if (lastTs !== undefined) {
+          const delta = now - lastTs;
+          if (delta > spikeThresholdMs) spikes++;
+        }
+        lastTs = now;
+        samples++;
+
+        if (samples >= sampleSize) {
+          const ratio = spikes / samples;
+          dbg("lowfx sample", { spikes, samples, ratio });
+          if (ratio > 0.15) applyLowFx(true); // enable if >=15% spikes in window
+          // Do not auto-disable to avoid flicker; user can refresh to re-evaluate
+          spikes = 0;
+          samples = 0;
+        }
+
+        handle = rvfc.call(el, step);
+      };
+
+      handle = rvfc.call(el, step);
+      return () => {
+        cancelled = true;
+        if (handle && typeof cancelRvfc === "function") {
+          try { cancelRvfc.call(el, handle); } catch { /* no-op */ }
+        }
+      };
+    }
+
+    // Fallback: poll playback quality where supported
+    const interval = window.setInterval(() => {
+      try {
+        const q = (el as any).getVideoPlaybackQuality?.();
+        if (q && q.totalVideoFrames > 0) {
+          const ratio = q.droppedVideoFrames / q.totalVideoFrames;
+          dbg("lowfx quality", { dropped: q.droppedVideoFrames, total: q.totalVideoFrames, ratio: ratio.toFixed(3) });
+          if (ratio > 0.1) applyLowFx(true);
+        } else {
+          const dropped = (el as any).webkitDroppedFrameCount ?? 0;
+          const decoded = (el as any).webkitDecodedFrameCount ?? 0;
+          if (decoded > 0) {
+            const ratio = dropped / decoded;
+            dbg("lowfx quality (webkit)", { dropped, decoded, ratio: ratio.toFixed(3) });
+            if (ratio > 0.1) applyLowFx(true);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }, 2000);
+
+    return () => { window.clearInterval(interval); };
+  }, [src]);
+
+  // Build candidate URL variants to handle Unicode normalization + encoding differences
+  function buildUrlCandidates(name: string, primarySrc: string): string[] {
+    const forms = new Set<string>();
+    const normed = [name, name.normalize?.("NFC"), name.normalize?.("NFD"), name.normalize?.("NFKC"), name.normalize?.("NFKD")]
+      .filter((s): s is string => typeof s === "string");
+    const encoders = [
+      (s: string) => encodeURIComponent(s),
+      (s: string) => encodeURI(s),
+      (s: string) => s, // raw
+    ];
+    // Always try current playlist-provided src first
+    forms.add(primarySrc);
+    for (const n of normed) {
+      for (const enc of encoders) {
+        const seg = enc(n);
+        forms.add(`/videos/${seg}`);
+      }
+    }
+    return Array.from(forms);
+  }
 
   // Register DOM controls to the context so external controls (and persisted state) apply to the element.
   useEffect(() => {
@@ -76,88 +211,179 @@ export default function BackgroundVideo() {
     if (!el) return;
 
     setReady(false);
+    resolvedRef.current = false;
+    // Build fallback candidates and reset attempt index
+    const candidates = buildUrlCandidates(filename, src);
+    candidatesRef.current = candidates;
+    candidateIndexRef.current = 0;
+
     // Bandwidth hint
     el.preload = saveData ? "metadata" : "auto";
-    el.src = src;
-    el.muted = muted;
-    el.volume = volume;
+    // Use first candidate; others attempted on error
+    el.src = candidatesRef.current[candidateIndexRef.current];
+    // Baseline attributes for best autoplay behavior
+    el.autoplay = true;
     el.playsInline = true;
+    // iOS Safari hint; cast to any to avoid typing issues
+    (el as any).webkitPlaysInline = true;
+    // Start muted to satisfy autoplay; we still honor user preference after gesture
+    el.muted = true;
 
-    dbg("init", { src, currentIndex, muted, volume });
+    // Keep previous state alignment
+    el.volume = volume;
 
-    // Restore time after metadata loads
-    const onLoadedMeta = () => {
-      // Mark as ready so background becomes visible promptly
-      setReady(true);
-      // If we had previously persisted a time, restore it
-      if (currentTime > 0 && Number.isFinite(currentTime)) {
-        try { el.currentTime = currentTime; } catch { /* no-op */ }
+    dbg("init", { requestedName: filename, primarySrc: src, firstAttempt: el.src, totalCandidates: candidatesRef.current.length });
+
+    const ensureSingleActive = (v: HTMLVideoElement) => {
+      if (activeBgVideo && activeBgVideo !== v && !activeBgVideo.paused) {
+        try { activeBgVideo.pause(); } catch { /* no-op */ }
       }
-      dbg("loadedmetadata", { currentSrc: el.currentSrc, duration: el.duration });
+      activeBgVideo = v;
     };
-    const tryPlay = () => {
-      // Only attempt programmatic play if muted or after user gesture.
-      if (!muted && !userGestureRef.current) {
-        dbg("tryPlay skipped (needs user gesture when unmuted)");
-        return;
+
+    const setNextCandidate = () => {
+      if (resolvedRef.current) return;
+      const next = candidateIndexRef.current + 1;
+      if (next < candidatesRef.current.length) {
+        candidateIndexRef.current = next;
+        const nextUrl = candidatesRef.current[next];
+        try {
+          el.src = nextUrl;
+          // Force a load to ensure new request
+          el.load();
+        } catch { /* no-op */ }
+        dbg("retry with candidate", { attempt: next + 1, url: nextUrl });
+      } else {
+        dbg("exhausted candidates; no playable source found", { attempts: candidatesRef.current.length, lastError: el.error?.code });
+        try { setIndex(currentIndex + 1); } catch { /* no-op */ }
       }
-      void el.play()
-        .then(() => {
-          setBlocked(false);
-          dbg("play() success", { currentTime: el.currentTime, muted: el.muted, volume: el.volume });
-        })
-        .catch((err) => {
-          // Detect autoplay prevention; sync UI back to paused so controls match reality
-          if (err && (err.name === "NotAllowedError" || String(err).includes("NotAllowedError"))) {
-            setBlocked(true);
-            // If VideoContext thinks we're playing but the browser blocked, force a pause() to sync UI
-            pause();
+    };
+
+    // Try programmatic play with muted-first fallback for autoplay policy
+    const tryPlay = async (v: HTMLVideoElement) => {
+      ensureSingleActive(v);
+      try {
+        await v.play();
+        setBlocked(false);
+        resolvedRef.current = true;
+        dbg("play() success", { currentTime: v.currentTime, muted: v.muted, volume: v.volume, src: v.currentSrc });
+      } catch (err: any) {
+        dbg("play() failed", { name: err?.name, message: err?.message });
+        if (err && (err.name === "NotAllowedError" || err.name === "AbortError")) {
+          // Fallback: force muted and retry to satisfy autoplay
+          v.muted = true;
+          try {
+            await v.play();
+            setBlocked(false);
+            resolvedRef.current = true;
+            dbg("retry play() muted success", { src: v.currentSrc });
+          } catch (err2: any) {
+            dbg("retry play() muted failed", { name: err2?.name, message: err2?.message });
           }
-          dbg("play() failed", { name: err?.name, message: err?.message, currentSrc: el.currentSrc });
-        });
+        }
+      }
     };
+
+    // Restore time after metadata loads and attempt to play
+    const onLoadedMeta = () => {
+      setReady(true);
+      dbg("loadedmetadata", { currentSrc: el.currentSrc, duration: el.duration });
+      if (Number.isFinite(currentTime) && currentTime > 0) {
+        let t = Math.max(0, currentTime);
+        const dur = el.duration;
+        if (Number.isFinite(dur)) {
+          const margin = 1.0;
+          if (t >= dur - margin) t = 0;
+        }
+        try { el.currentTime = t; } catch { /* no-op */ }
+        dbg("restore time", { requested: currentTime, applied: el.currentTime, duration: el.duration });
+      }
+      void tryPlay(el);
+    };
+
     const onCanPlay = () => {
       setReady(true);
-      dbg("canplay", { readyState: el.readyState });
-      tryPlay();
+      resolvedRef.current = true;
+      dbg("canplay", { readyState: el.readyState, src: el.currentSrc });
+      void tryPlay(el);
     };
+
     const onCanPlayThrough = () => {
       setReady(true);
-      dbg("canplaythrough", { readyState: el.readyState });
-      tryPlay();
+      resolvedRef.current = true;
+      dbg("canplaythrough", { readyState: el.readyState, src: el.currentSrc });
+      void tryPlay(el);
     };
+
+    const onPlay = () => {
+      ensureSingleActive(el);
+    };
+
     const onEnded = () => {
       dbg("ended, advancing", { from: currentIndex, to: currentIndex + 1 });
       setIndex(currentIndex + 1);
     };
+
     const onTimeUpdate = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
-        setCurrentTime(el.currentTime || 0);
+        const now = performance.now();
+        if (now - lastSentTimeRef.current >= 500) {
+          setCurrentTime(el.currentTime || 0);
+          lastSentTimeRef.current = now;
+        }
       });
     };
+
     const onError = () => {
       const mediaErr = el.error;
-      dbg("error", { code: mediaErr?.code, message: mediaErr?.message, currentSrc: el.currentSrc });
-      // keep ready as-is; error visibility is inspected via console
+      dbg("error", { code: mediaErr?.code, message: mediaErr?.message, currentSrc: el.currentSrc, attempt: candidateIndexRef.current + 1 });
+      if (!resolvedRef.current) {
+        setNextCandidate();
+      }
     };
 
     el.addEventListener("loadedmetadata", onLoadedMeta);
     el.addEventListener("canplay", onCanPlay);
     el.addEventListener("canplaythrough", onCanPlayThrough);
+    el.addEventListener("play", onPlay);
     el.addEventListener("ended", onEnded);
     el.addEventListener("timeupdate", onTimeUpdate);
     el.addEventListener("error", onError);
+
+    // One-time real user gesture unblocks unmuted playback
+    const onFirstGesture = () => {
+      userGestureRef.current = true;
+      // If already playing muted, unmute smoothly and ensure playing
+      el.muted = false;
+      void tryPlay(el);
+    };
+    document.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true, capture: true });
+    document.addEventListener("keydown", onFirstGesture, { once: true, capture: true });
+
+    // Soft “simulated tap” (safe no-op if not needed; doesn't bypass browser policy)
+    requestAnimationFrame(() => {
+      try {
+        el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      } catch { /* no-op */ }
+    });
+
+    // Kick the first load explicitly for some browsers
+    try { el.load(); } catch { /* no-op */ }
 
     return () => {
       el.removeEventListener("loadedmetadata", onLoadedMeta);
       el.removeEventListener("canplay", onCanPlay);
       el.removeEventListener("canplaythrough", onCanPlayThrough);
+      el.removeEventListener("play", onPlay);
       el.removeEventListener("ended", onEnded);
       el.removeEventListener("timeupdate", onTimeUpdate);
       el.removeEventListener("error", onError);
+      document.removeEventListener("pointerdown", onFirstGesture, true);
+      document.removeEventListener("keydown", onFirstGesture, true);
     };
-  }, [src, currentIndex, isPlaying, muted, volume, currentTime, setCurrentTime, setIndex, saveData]);
+  }, [src, filename, currentIndex, setCurrentTime, setIndex, saveData, volume]);
   
   // Preload the next video (metadata only) to hide loading between transitions
   useEffect(() => {
@@ -169,6 +395,21 @@ export default function BackgroundVideo() {
     el.src = nextUrl;
     el.load();
   }, [currentIndex, playlist, saveData]);
+   // Allow external UI to toggle low-effects mode via a custom event
+  useEffect(() => {
+    const onToggle = (ev: Event) => {
+      try {
+        const detail = (ev as CustomEvent<boolean>).detail;
+        applyLowFx(Boolean(detail));
+      } catch {
+        // ignore
+      }
+    };
+    document.addEventListener("ep:lowfx-toggle", onToggle as EventListener);
+    return () => {
+      document.removeEventListener("ep:lowfx-toggle", onToggle as EventListener);
+    };
+  }, []);
   
   // Eagerly load when signed in: increase preload and try muted playback to warm caches.
   useEffect(() => {
@@ -250,6 +491,9 @@ export default function BackgroundVideo() {
 
       {/* Controls (bottom-left via CSS) - show only when authenticated */}
       {isAuthenticated && <VideoControls filename={filename} />}
+
+      {/* Playlist (bottom-left via CSS) - show only when authenticated */}
+      {isAuthenticated && <Playlist />}
 
       {/* Autoplay blocked fallback (bottom-left next to controls) */}
       {isAuthenticated && blocked && (

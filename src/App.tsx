@@ -1,5 +1,4 @@
-import { Authenticated, Unauthenticated, useQuery, useConvexAuth } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import { SignInForm } from "./SignInForm";
 import { SignOutButton } from "./SignOutButton";
 import { Toaster, toast } from "sonner";
@@ -9,6 +8,7 @@ import Blog from "./Blog";
 import { About } from "./About";
 import { Profile } from "./Profile";
 import BackgroundVideo from "./components/BackgroundVideo";
+import ActionButtons from "./components/ActionButtons";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<"profile" | "gallery" | "blog" | "about">("profile");
@@ -44,11 +44,11 @@ export default function App() {
     <>
       <BackgroundVideo />
       <div className="relative z-[1] min-h-screen flex flex-col bg-transparent">
-        <header className="sticky top-0 z-10 glass-elevated text-white p-4">
+        <header className="sticky top-0 z-10 glass-elevated glass-3d text-contrast p-6 mx-4 mt-4 rounded-2xl">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Emerald Palace" className="w-8 h-8" />
-              <h2 className="text-2xl font-semibold">Emerald Palace</h2>
+              <img src="/logo.svg" alt="Emerald Palace" className="w-10 h-10" />
+              <h2 className="text-3xl font-semibold">Emerald Palace</h2>
             </div>
             {/* Desktop navigation - left side */}
             <nav className="hidden @[600px]:flex gap-2 items-center">
@@ -84,7 +84,10 @@ export default function App() {
           </div>
 
           {/* Mobile navigation - only visible below 600px when menu is open */}
-          <nav id="mobile-navigation" className={`${isMenuOpen ? "flex" : "hidden"} @[600px]:hidden flex-col gap-2 mt-4`}>
+          <nav
+            id="mobile-navigation"
+            className={`${isMenuOpen ? "flex" : "hidden"} @[600px]:hidden flex-col gap-2 mt-4 glass-elevated glass-3d rounded-xl p-3 border border-white/20`}
+          >
             {menuItems.map((item) => (
               <button
                 key={item.id}
@@ -104,19 +107,19 @@ export default function App() {
             </div>
           </nav>
         </header>
-        
-        <main className="flex-1 p-8">
+
+        <main className="flex-1 p-6 mx-4 mb-4">
           <Unauthenticated>
-            <div className="max-w-md mx-auto">
-              <div className="flex justify-center mb-8">
-                <img src="/logo.svg" alt="Emerald Palace" className="w-20 h-20" />
-              </div>
-              <h1 className="text-4xl font-bold text-center mb-8 text-emerald-800">Welcome to Emerald Palace</h1>
-              <p className="text-center text-gray-600 mb-8">
-                Save your profile by signing up with an email and make a password. Otherwise, sign in anonymously without an email.
-              </p>
-              <SignInForm />
-            </div>
+            <div className="max-w-md mx-auto glass-elevated glass-3d rounded-2xl border border-white/20 p-6 text-contrast">
+               <div className="flex justify-center mb-8">
+                 <img src="/logo.svg" alt="Emerald Palace" className="w-20 h-20" />
+               </div>
+               <h1 className="text-4xl font-bold text-center mb-8 text-contrast">Welcome to Emerald Palace</h1>
+               <p className="text-center text-white/90 text-contrast-shadow mb-8">
+                 Save your profile by signing up with an email and make a password. Otherwise, sign in anonymously without an email.
+               </p>
+               <SignInForm />
+             </div>
           </Unauthenticated>
           
           <Authenticated>
@@ -126,6 +129,7 @@ export default function App() {
             {currentPage === "about" && <About />}
           </Authenticated>
         </main>
+        <ActionButtons />
         <Toaster />
       </div>
     </>
