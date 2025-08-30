@@ -185,6 +185,32 @@ export default function Blog() {
     content: "",
   });
 
+  // Icebreaker prompts to get the conversation going
+  const icebreakers = useMemo(
+    () => [
+      "What song instantly reminds you of Em?",
+      "Share a tiny memory that still makes you smile.",
+      "If you could send Em a note today, what would it say?",
+      "A picture in words: describe a place you shared with Em.",
+      "Two words that capture Em's vibe—go!",
+      "What would you play for Em on a long drive?",
+      "Tell the group something small but golden about Em.",
+    ],
+    []
+  );
+
+  const prefill = useCallback(
+    (text: string, toEmily: boolean) => {
+      if (!editor) return;
+      const prefix = toEmily ? "Dear Em, " : "Hey everyone, ";
+      editor.commands.setContent({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: prefix + text }] }] });
+      // Ensure focus for immediate typing
+      editor.commands.focus("end");
+      setTitle("");
+    },
+    [editor]
+  );
+
   const addImage = useCallback(
     async (file: File) => {
       if (!editor) return;
@@ -281,20 +307,49 @@ export default function Blog() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-emerald-800 mb-2">Memories</h1>
-      <p className="text-gray-600 mb-8">Share some words, a story, or a memory here.</p>
+    <div className="max-w-3xl mx-auto">
+      <div className="flex items-end justify-between mb-3">
+        <h1 className="text-2xl font-bold">Forum</h1>
+        <span className="text-sm opacity-70">A cozy feed for our little group</span>
+      </div>
 
-      <div className="mb-12 space-y-4">
+      {/* Icebreaker chips */}
+      <div className="glass-elevated glass-3d rounded-2xl border mb-6 p-3">
+        <div className="text-sm mb-2 font-medium">Try an icebreaker</div>
+        <div className="flex gap-2 flex-wrap">
+          {icebreakers.map((q, i) => (
+            <button
+              key={i}
+              type="button"
+              className="px-3 py-2 text-sm rounded-xl border border-black/20 bg-white/60 hover:bg-white/80"
+              onClick={() => prefill(q, false)}
+              title="Prefill composer with this prompt"
+            >
+              {q}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="px-3 py-2 text-sm rounded-xl border border-black/20 bg-white/60 hover:bg-white/80"
+            onClick={() => prefill("I wanted to tell you...", true)}
+            title="Write a note to Emily"
+          >
+            Write to Emily
+          </button>
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="mb-8 space-y-4 glass-elevated glass-3d rounded-2xl border p-3">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Title"
-          className="w-full p-2 border rounded text-lg"
+          placeholder="Add a title (optional)"
+          className="w-full p-2 border rounded-xl text-base bg-white/60"
           required
         />
-        <div className="border rounded overflow-hidden">
+        <div className="border rounded-xl overflow-hidden bg-white/50">
           <MenuBar editor={editor} />
           <div
             className="relative"
@@ -303,49 +358,50 @@ export default function Blog() {
             onPaste={handlePaste}
           >
             {uploading && (
-              <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+              <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-sm">
                 Uploading image...
               </div>
             )}
             <EditorContent editor={editor} className="prose max-w-none p-4" />
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="flex justify-end gap-4">
+        <form onSubmit={handleSubmit} className="flex justify-end gap-3">
           <button
             type="submit"
             disabled={!title.trim() || !editor?.getText().trim()}
-            className="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700 disabled:opacity-50"
+            className="ep-btn ep-btn--pink"
           >
             Share Memory
           </button>
         </form>
       </div>
 
-      <div className="space-y-8">
+      {/* Feed */}
+      <div className="space-y-4">
         {posts?.map((post) => (
-          <article key={post._id} className="border rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b">
-              <div className="flex justify-between items-start mb-4">
+          <article key={post._id} className="glass-elevated glass-3d rounded-2xl border overflow-hidden">
+            <div className="p-4 border-b bg-white/50">
+              <div className="flex justify-between items-start mb-2">
                 <AuthorInfo userId={post.authorId} />
                 {post.authorId === user?._id && (
                   <button
                     type="button"
                     onClick={() => handleDelete(post._id)}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 hover:text-red-700 text-sm"
                   >
                     Delete
                   </button>
                 )}
               </div>
-              <h2 className="text-xl font-semibold">{post.title}</h2>
-              <div className="text-sm text-gray-500 mt-1">
+              {post.title && <h2 className="text-lg font-semibold">{post.title}</h2>}
+              <div className="text-xs opacity-60 mt-1">
                 {new Date(post._creationTime).toLocaleDateString()}
               </div>
             </div>
-            <div className="prose max-w-none p-4">
+            <div className="prose max-w-none p-4 bg-white/60">
               <PostContent content={post.content} />
             </div>
-            <div className="border-t">
+            <div className="border-t bg-white/50">
               <Comments targetType="post" targetId={post._id} />
             </div>
           </article>

@@ -2,30 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* FORCE ALL TEXT TO BE BLACK - Global override */
+* {
+  color: #000000 !important;
+}
+
+/* Ensure text elements are black */
+body, p, span, div, h1, h2, h3, h4, h5, h6, a, button, input, textarea, select, label, li, td, th, dt, dd, blockquote, cite, q, code, pre, kbd, samp, var {
+  color: #000000 !important;
+}
+
+/* Force black text for all text-based elements */
+::placeholder {
+  color: #000000 !important;
+  opacity: 0.7 !important;
+}
+
 :root {
   --color-light: #fefefe;
-  --color-dark: #2d3748;
+  --color-dark: #000000; /* Force black */
   --color-pastel-pink: #fce7f3;
   --color-pastel-blue: #dbeafe;
   --color-pastel-green: #d1fae5;
   --color-pastel-purple: #e9d5ff;
   --color-pastel-yellow: #fef3c7;
   --color-pastel-gray: #f7fafc;
-  --color-off-white: #fafafa;
+  --color-off-white: #000000; /* Force black */
 }
 
 .accent-text {
-  @apply text-slate-600;
+  color: #000000; /* Black text for better contrast */
+  font-weight: 500;
 }
 
-/* Glassmorphism tokens and utilities */
+/* Glassmorphism tokens and utilities - Updated for light pink theme */
 :root {
-  --glass-bg: rgba(8, 10, 16, 0.42); /* slightly more transparent for extra view-through */
-  --glass-blur: 18px;
-  --glass-border: 1px;
-  --glass-border-color: rgba(255, 255, 255, 0.45); /* brighter edge rim for 3D look */
-  --glass-shadow: 0 12px 32px rgba(0, 0, 0, 0.40), inset 0 1px 0 rgba(255,255,255,0.10);
-  --glass-hover: rgba(255, 255, 255, 0.16); /* higher hover contrast */
+  --glass-bg: rgba(255, 182, 193, 0.25); /* Very light pink background */
+  --glass-blur: 20px;
+  --glass-border: 2px; /* 2pt black outline as requested */
+  --glass-border-color: #000000; /* Black outline */
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.20);
+  --glass-hover: rgba(255, 182, 193, 0.35); /* Enhanced hover with light pink */
+  --border-radius: 12px; /* 12pt corner radius for all cards and divs */
 }
 
 .glass-elevated {
@@ -34,12 +52,33 @@
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: var(--glass-border) solid var(--glass-border-color);
   box-shadow: var(--glass-shadow);
+  border-radius: var(--border-radius);
+  color: #000000; /* Black text */
 }
 
 .glass-overlay {
-  background: rgba(8, 8, 12, 0.65); /* higher-contrast overlay */
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 182, 193, 0.4); /* Light pink overlay */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--border-radius);
+}
+
+.glassmorphic-btn {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border) solid var(--glass-border-color);
+  color: #000000; /* Black text */
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: var(--glass-shadow);
+}
+
+.glassmorphic-btn:hover {
+  background: var(--glass-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
 }
 
 /* 3D glass enhancement: subtle specular highlights + inner/outer depth */
@@ -77,12 +116,55 @@
 }
 /* Text contrast helper for readability on video-backed glass */
 .text-contrast {
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  color: #000000 !important; /* Black text for light backgrounds */
+  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
 }
 .text-contrast-shadow {
-  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
 }
+
+/* All text is now forced to black via global override */
+/* Utility: force white text on dark backgrounds */
+.text-on-dark { color: #ffffff !important; }
+
+/* Standard buttons */
+.ep-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: var(--border-radius);
+  border: 2px solid #000000;
+  background: rgba(255, 255, 255, 0.6);
+  color: #000000;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.ep-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.ep-btn:active { transform: translateY(0); }
+.ep-btn--pink { background: rgba(255, 182, 193, 0.6); }
+
+/* Mobile slide-in menu */
+.ep-slide-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(86vw, 360px);
+  background: rgba(255, 182, 193, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-left: 2px solid #000000;
+  z-index: 10000;
+  padding: 16px;
+  transform: translateX(100%);
+  transition: transform 200ms ease;
+}
+.ep-slide-menu.open { transform: translateX(0); }
+.ep-slide-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 9999;
+}
+.ep-menu-link { display:block; margin-bottom: 10px; }
+
 
 /* Pill buttons for header nav and actions */
 .pill-link {
@@ -90,11 +172,14 @@
   align-items: center;
   justify-content: center;
   padding: 8px 14px;
-  border-radius: 9999px;
-  color: #fff;
+  border-radius: var(--border-radius);
+  color: #000000; /* Black text */
   text-decoration: none;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  border: 1px solid rgba(0,0,0,0.2);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
   transition: background-color 120ms ease, transform 80ms ease, border-color 120ms ease, opacity 120ms ease;
 }
 .pill-link:hover {
@@ -131,7 +216,6 @@ body {
      "Segoe UI Emoji",
      "Segoe UI Symbol",
      "Noto Color Emoji";
-  color: var(--color-dark);
   background: linear-gradient(135deg, var(--color-pastel-gray) 0%, var(--color-off-white) 100%);
   font-size: 14pt;
   line-height: 1.6;
@@ -147,20 +231,28 @@ body {
 }
 
 .link-text {
-  @apply text-blue-500 hover:underline cursor-pointer font-medium;
+  color: #000000; /* Black text */
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
 }
 
-/* Modern auth form */
+.link-text:hover {
+  opacity: 0.7;
+}
+
+/* Modern auth form - Glassmorphic Design */
 .modern-input {
-  @apply w-full px-3 py-3 rounded-xl bg-white/70 dark:bg-white/5 border border-slate-200/70 dark:border-slate-700/60 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/60 focus:border-emerald-500 text-sm transition-colors placeholder-transparent;
+  @apply w-full px-4 py-4 rounded-xl border-2 border-black/30 bg-white/20 backdrop-blur-md shadow-lg focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black text-sm transition-all duration-300 placeholder-transparent;
 }
 
 /* Floating label styles */
 .floating-label {
   /* Base = floated position; placeholder-shown pulls it back down */
-  @apply pointer-events-none absolute left-3 top-2 -translate-y-0 text-xs text-slate-500 transition-all duration-200 font-medium bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent;
+  @apply pointer-events-none absolute left-4 top-2 -translate-y-0 text-xs transition-all duration-300 font-semibold;
   @apply peer-[&:not(:placeholder-shown)]:top-2 peer-[&:not(:placeholder-shown)]:-translate-y-0 peer-[&:not(:placeholder-shown)]:text-xs;
-  @apply peer-focus:top-2 peer-focus:-translate-y-0 peer-focus:text-xs peer-focus:text-emerald-600;
+  @apply peer-focus:top-2 peer-focus:-translate-y-0 peer-focus:text-xs;
 }
 /* Explicit CSS for placeholder-shown peer state (adjacent sibling; matches current DOM order) */
 .peer:placeholder-shown + .floating-label {
@@ -171,11 +263,140 @@ body {
 }
 
 .modern-primary-btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-medium py-3 px-4 text-sm shadow-md shadow-emerald-600/30 hover:shadow-lg hover:shadow-emerald-600/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-white/30 backdrop-blur-md border-2 border-black text-black font-semibold py-4 px-6 text-sm shadow-xl hover:shadow-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:bg-white/40 hover:transform hover:scale-105;
 }
 
 @layer utilities {
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+}
+
+/* Accessibility and usability utilities */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.focus\:not-sr-only:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: initial;
+  margin: initial;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Enhanced focus indicators for better accessibility */
+*:focus-visible {
+  outline: 2px solid #000000;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* High contrast focus for interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #000000;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+/* Better touch targets for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .ep-action-btn {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .ep-bg-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .pill-link {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-elevated {
+    border: 2px solid #000000;
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .ep-bg-controls {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #000000;
+  }
+}
+
+/* Mobile-specific video controls - hide back/forward buttons */
+@media (max-width: 768px) {
+  /* Hide previous and next track buttons on mobile */
+  .ep-bg-btn:nth-child(3),
+  .ep-bg-btn:nth-child(4) {
+    display: none;
+  }
+
+  /* Adjust spacing for mobile video controls */
+  .ep-bg-controls {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  /* Ensure playlist panel fits better on mobile */
+  .ep-playlist-panel {
+    width: calc(100vw - 40px);
+    max-width: none;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* Adjust playlist toggle position for mobile */
+  .ep-playlist-toggle {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-left: 0;
+    bottom: 12px;
+  }
+
+  /* Hide video control buttons on mobile except first few for space */
+  .ep-bg-controls .ep-bg-btn:nth-child(n+4) {
+    display: none;
+  }
+
+  /* Adjust video controls spacing on mobile */
+  .ep-bg-controls {
+    padding: 8px 12px;
+    gap: 6px;
+    max-width: calc(100vw - 24px);
+  }
 }
 
 /* Fallback for browsers / Tailwind configs without arbitrary not(:placeholder-shown) */
@@ -210,12 +431,24 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: contrast(1.15) brightness(1.03); /* +15% contrast, +3% brightness (lift blacks slightly) */
+  filter: contrast(1.12) brightness(1.02) blur(4px); /* Optimized contrast/brightness + 4px blur */
   display: block;
-  /* Performance hints */
+  /* Enhanced performance hints */
   will-change: transform, opacity;
   transform: translateZ(0); /* promote to its own layer */
   backface-visibility: hidden;
+  /* MPEG optimization */
+  image-rendering: optimize-speed;
+  /* GPU acceleration hints */
+  transform: translate3d(0, 0, 0);
+}
+
+.ep-bg-video-blur {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
 .ep-bg-controls {
@@ -226,29 +459,45 @@ body {
   pointer-events: auto; /* interactive */
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 9999px;
-  background: rgba(17, 24, 39, 0.55); /* slate-900/55 */
-  color: #fff;
-  backdrop-filter: saturate(1.2) blur(8px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-  font-size: 12px;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--border-radius);
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border) solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+  color: #db2777; /* pink text */
+  font-size: 13px;
   line-height: 1;
+  transition: all 0.3s ease;
 }
 
 .ep-bg-btn {
   all: unset;
   cursor: pointer;
-  padding: 6px;
+  padding: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
-  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255, 182, 193, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  color: var(--glass-text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
+.ep-bg-btn:hover {
+  background: var(--glass-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
 .ep-bg-btn:focus-visible {
-  outline: 2px solid rgba(16, 185, 129, 0.9); /* emerald-500 */
+  outline: 2px solid #000000;
   outline-offset: 2px;
 }
 
@@ -258,8 +507,9 @@ body {
 }
 
 .ep-bg-btn:disabled:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 182, 193, 0.15);
   transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .ep-bg-filename {
@@ -297,56 +547,62 @@ textarea:focus-visible,
   accent-color: #10b981; /* emerald-500 */
 }
 
-/* Playlist Styles */
+/* Playlist Styles - Glassmorphic Design */
 .ep-playlist-toggle {
+  all: unset;
   position: fixed;
   bottom: 12px;
-  left: 200px; /* Position right after the control bar */
+  left: 12px; /* Align with video controls */
   z-index: 9999;
+  cursor: pointer;
+  padding: 10px;
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px; /* Smaller padding */
-  border-radius: 16px; /* Smaller border radius */
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-dark);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 182, 193, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  color: #000000; /* Black text */
+  font-size: 14px;
+  font-weight: 600;
   transition: all 0.2s ease;
-  cursor: pointer;
-  font-size: 11px; /* Smaller font size */
-  font-weight: 500;
-  min-width: auto; /* Remove minimum width */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-left: 160px; /* Space from video controls */
 }
 
 .ep-playlist-toggle:hover {
-  background: rgba(255, 255, 255, 1);
+  background: rgba(255, 182, 193, 0.25);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .ep-playlist-panel {
   position: fixed;
   bottom: 60px;
-  left: 200px; /* Align with the toggle button */
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 9998;
-  width: 300px; /* Slightly smaller width */
-  max-height: 400px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  width: 320px;
+  max-height: 450px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border) solid var(--glass-border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--glass-shadow);
   overflow: hidden;
+  /* Ensure popup stays within viewport bounds */
+  max-width: calc(100vw - 40px);
 }
 
 .ep-playlist-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  background: linear-gradient(135deg, var(--color-pastel-blue) 0%, var(--color-pastel-purple) 100%);
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.3) 0%, rgba(255, 192, 203, 0.3) 100%);
+  font-weight: 600;
 }
 
 .ep-playlist-content {
@@ -363,24 +619,27 @@ textarea:focus-visible,
   width: 100%;
   display: flex;
   align-items: center;
-  padding: 12px 8px;
-  margin-bottom: 4px;
-  border-radius: 8px;
+  padding: 14px 12px;
+  margin-bottom: 6px;
+  border-radius: var(--border-radius);
   background: transparent;
-  border: none;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   text-align: left;
+  color: #000000; /* Black text */
 }
 
 .ep-playlist-song:hover {
-  background: var(--color-pastel-gray);
+  background: var(--glass-hover);
   transform: translateX(4px);
+  border-color: rgba(0, 0, 0, 0.2);
 }
 
 .ep-playlist-song-active {
-  background: var(--color-pastel-blue);
-  border-left: 3px solid #3b82f6;
+  background: rgba(255, 182, 193, 0.4);
+  border: 2px solid #000000;
+  border-left: 4px solid #000000;
 }
 
 .ep-song-info {
@@ -392,7 +651,6 @@ textarea:focus-visible,
 
 .ep-song-number {
   font-size: 11px;
-  color: #6b7280;
   font-weight: 600;
   min-width: 24px;
 }
@@ -404,7 +662,6 @@ textarea:focus-visible,
 
 .ep-song-title {
   font-size: 13px;
-  color: var(--color-dark);
   font-weight: 500;
   line-height: 1.3;
   display: block;
@@ -415,7 +672,6 @@ textarea:focus-visible,
 
 .ep-now-playing {
   font-size: 10px;
-  color: #3b82f6;
   font-weight: 600;
   margin-top: 2px;
   display: block;
@@ -432,20 +688,24 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px;
-  border-radius: 8px;
-  background: var(--color-pastel-green);
-  color: var(--color-dark);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  border-radius: var(--border-radius);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border) solid var(--glass-border-color);
+  box-shadow: var(--glass-shadow);
+  color: #000000; /* Black text */
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
-  font-weight: 500;
+  transition: all 0.3s ease;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .ep-recommend-btn:hover {
-  background: #a7f3d0;
-  transform: translateY(-1px);
+  background: var(--glass-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .ep-recommend-form {
@@ -457,43 +717,52 @@ textarea:focus-visible,
 
 .ep-recommend-input {
   flex: 1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  background: white;
-  font-size: 12px;
+  padding: 10px 14px;
+  border-radius: var(--border-radius);
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  background: rgba(255, 182, 193, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #000000; /* Black text */
+  font-size: 13px;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .ep-recommend-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: #000000;
+  background: rgba(255, 182, 193, 0.2);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
 
 .ep-recommend-submit {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: var(--color-pastel-blue);
-  color: var(--color-dark);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 10px 14px;
+  border-radius: var(--border-radius);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 2px solid #000000;
+  box-shadow: var(--glass-shadow);
+  color: #000000; /* Black text */
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
 .ep-recommend-submit:hover:not(:disabled) {
-  background: #93c5fd;
-  transform: translateY(-1px);
+  background: var(--glass-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .ep-recommend-submit:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
-/* Action Buttons Styles */
+/* Action Buttons Styles - Glassmorphic Design */
 .ep-action-buttons {
   position: fixed;
   bottom: 20px;
@@ -501,40 +770,43 @@ textarea:focus-visible,
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .ep-action-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  border: 2px solid #000000;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-  font-size: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  transition: all 0.4s ease;
+  font-size: 22px;
+  color: #000000; /* Black line icons */
 }
 
 .ep-upload-btn {
-  background: linear-gradient(135deg, var(--color-pastel-purple) 0%, var(--color-pastel-pink) 100%);
-  color: var(--color-dark);
+  background: rgba(255, 182, 193, 0.8);
 }
 
 .ep-post-btn {
-  background: linear-gradient(135deg, var(--color-pastel-green) 0%, var(--color-pastel-blue) 100%);
-  color: var(--color-dark);
+  background: rgba(173, 216, 230, 0.8);
 }
 
 .ep-action-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+  background: var(--glass-hover);
 }
 
 .ep-action-btn:active {
-  transform: translateY(0) scale(0.95);
+  transform: translateY(-1px) scale(1.02);
 }
 
 /* Update existing glass styles for pastel theme */
@@ -544,6 +816,8 @@ textarea:focus-visible,
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius);
+  color: #000000; /* Black text */
 }
 
 .glass-overlay {
@@ -555,7 +829,6 @@ textarea:focus-visible,
 /* Update video controls for pastel theme */
 .ep-bg-controls {
   background: rgba(255, 255, 255, 0.9);
-  color: var(--color-dark);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -563,7 +836,6 @@ textarea:focus-visible,
 
 .ep-bg-btn {
   background: rgba(0, 0, 0, 0.05);
-  color: var(--color-dark);
 }
 
 .ep-bg-btn:hover {
@@ -572,7 +844,31 @@ textarea:focus-visible,
 
 /* Update text colors for better contrast */
 .text-contrast {
-  color: var(--color-dark) !important;
+  color: #000000 !important; /* Black text for better contrast */
+}
+
+/* Info buttons and tooltips */
+.info-button {
+  @apply w-6 h-6 bg-black rounded-full flex items-center justify-center text-xs text-white hover:bg-gray-800 transition-colors;
+}
+
+.info-tooltip {
+  @apply absolute p-3 bg-black text-white text-xs rounded-lg shadow-lg max-w-xs z-50;
+}
+
+.info-tooltip::before {
+  content: '';
+  @apply absolute w-0 h-0;
+}
+
+.info-tooltip.tooltip-top::before {
+  @apply border-l-4 border-r-4 border-b-4 border-transparent border-b-black;
+  @apply bottom-full left-4;
+}
+
+.info-tooltip.tooltip-bottom::before {
+  @apply border-l-4 border-r-4 border-t-4 border-transparent border-t-black;
+  @apply top-full right-4;
 }
 
 /* Add smooth scrolling for playlist */

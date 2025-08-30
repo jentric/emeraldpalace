@@ -14,6 +14,15 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<"profile" | "gallery" | "blog" | "about">("profile");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useConvexAuth();
+
+  // Skip to main content handler
+  const skipToMain = () => {
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+      mainContent.focus();
+      mainContent.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
    
   // Left-side pills in header
   const menuItems = [
@@ -42,87 +51,115 @@ export default function App() {
 
   return (
     <>
+      {/* Skip to main content link for accessibility */}
+      <a
+        href="#main-content"
+        onClick={skipToMain}
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 glassmorphic-btn px-4 py-2 text-sm font-medium rounded-lg"
+      >
+        Skip to main content
+      </a>
+
       <BackgroundVideo />
       <div className="relative z-[1] min-h-screen flex flex-col bg-transparent">
-        <header className="sticky top-0 z-10 glass-elevated glass-3d text-contrast p-6 mx-4 mt-4 rounded-2xl">
+        <header className="sticky top-0 z-10 glass-elevated glass-3d text-contrast p-6 mx-4 mt-4 rounded-2xl" role="banner">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo.svg" alt="Emerald Palace" className="w-10 h-10" />
+              <img src="/logo.png" alt="Emerald Palace" className="w-10 h-10" />
               <h2 className="text-3xl font-semibold">Emerald Palace</h2>
             </div>
-            {/* Desktop navigation - left side */}
-            <nav className="hidden @[600px]:flex gap-2 items-center">
+            {/* Desktop/Tablet nav - direct links */}
+            <nav className="hidden md:flex gap-2 items-center" role="navigation" aria-label="Main navigation">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setCurrentPage(item.id)}
-                  className={`pill-link ${currentPage === item.id ? "bg-white/20" : ""}`}
+                  className={`ep-btn ${currentPage === item.id ? "ep-btn--pink" : ""}`}
+                  aria-current={currentPage === item.id ? "page" : undefined}
+                  aria-describedby={`${item.id}-description`}
+                  title={`Navigate to ${item.label} page`}
                 >
                   {item.label}
+                  <span id={`${item.id}-description`} className="sr-only">
+                    {item.id === "gallery" && "View and explore your timeline of memories"}
+                    {item.id === "blog" && "Join the community forum to share and discuss"}
+                    {item.id === "about" && "Learn more about Emerald Palace"}
+                  </span>
                 </button>
               ))}
             </nav>
             {/* Spacer pushes sign out + hamburger to far right */}
-            <div className="ml-auto hidden @[600px]:flex items-center gap-3">
+            <div className="ml-auto hidden md:flex items-center gap-3">
               <SignOutButton />
             </div>
-            {/* Hamburger button - only visible below 600px */}
+            {/* Hamburger button - only on mobile */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="@[600px]:hidden ml-auto p-2 hover:bg-white/10 rounded flex items-center gap-2"
-              aria-label="Toggle menu"
+              className="md:hidden ml-auto p-3 hover:bg-white/10 rounded-lg flex items-center gap-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/30"
+              aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-navigation"
+              title={isMenuOpen ? "Close menu" : "Open menu"}
             >
-              <span>Menu</span>
-              <div className="w-6 h-5 relative flex flex-col justify-between">
-                <span className={`block h-0.5 w-full bg-white transform transition-transform ${isMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
-                <span className={`block h-0.5 w-full bg-white transition-opacity ${isMenuOpen ? "opacity-0" : ""}`} />
-                <span className={`block h-0.5 w-full bg-white transform transition-transform ${isMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+              <span className="sr-only">{isMenuOpen ? "Close" : "Open"} menu</span>
+              <span className="text-sm font-medium">Menu</span>
+              <div className="w-6 h-5 relative flex flex-col justify-between" aria-hidden="true">
+                <span className={`block h-0.5 w-full bg-current transform transition-transform duration-200 ${isMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
+                <span className={`block h-0.5 w-full bg-current transition-opacity duration-200 ${isMenuOpen ? "opacity-0" : ""}`} />
+                <span className={`block h-0.5 w-full bg-current transform transition-transform duration-200 ${isMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
               </div>
             </button>
           </div>
 
-          {/* Mobile navigation - only visible below 600px when menu is open */}
-          <nav
-            id="mobile-navigation"
-            className={`${isMenuOpen ? "flex" : "hidden"} @[600px]:hidden flex-col gap-2 mt-4 glass-elevated glass-3d rounded-xl p-3 border border-white/20`}
-          >
-            {menuItems.map((item) => (
+          {/* Mobile slide-in menu */}
+          {isMenuOpen && <div className="ep-slide-overlay md:hidden" onClick={() => setIsMenuOpen(false)} aria-hidden />}
+          <nav id="mobile-navigation" className={`ep-slide-menu ${isMenuOpen ? "open" : ""} md:hidden`} role="navigation" aria-label="Mobile navigation menu">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-semibold">Menu</div>
+              <button type="button" className="ep-btn" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">Close</button>
+            </div>
+            {menuItems.map((item, index) => (
               <button
                 key={item.id}
-                onClick={() => {
-                  setCurrentPage(item.id);
-                  setIsMenuOpen(false);
-                }}
-                className={`pill-link ${currentPage === item.id ? "bg-white/20" : ""}`}
+                onClick={() => { setCurrentPage(item.id); setIsMenuOpen(false); }}
+                className="ep-btn ep-btn--pink ep-menu-link"
+                aria-current={currentPage === item.id ? "page" : undefined}
+                autoFocus={index === 0}
               >
                 {item.label}
               </button>
             ))}
-            <div className="pt-2 mt-2 border-t border-white/15">
-              <div className="px-1 py-2">
-                <SignOutButton />
-              </div>
+            <div className="mt-4">
+              <SignOutButton />
             </div>
           </nav>
         </header>
 
-        <main className="flex-1 p-6 mx-4 mb-4">
+        <main id="main-content" className="flex-1 p-6 mx-4 mb-4" role="main" tabIndex={-1}>
           <Unauthenticated>
-            <div className="max-w-md mx-auto glass-elevated glass-3d rounded-2xl border border-white/20 p-6 text-contrast">
+            <div className="max-w-md mx-auto glass-elevated glass-3d rounded-2xl border border-white/20 p-6 text-contrast" role="region" aria-labelledby="welcome-heading">
                <div className="flex justify-center mb-8">
-                 <img src="/logo.svg" alt="Emerald Palace" className="w-20 h-20" />
+                 <img src="/logo.png" alt="Emerald Palace logo" className="w-20 h-20" />
                </div>
-               <h1 className="text-4xl font-bold text-center mb-8 text-contrast">Welcome to Emerald Palace</h1>
-               <p className="text-center text-white/90 text-contrast-shadow mb-8">
+               <h1 id="welcome-heading" className="text-4xl font-bold text-center mb-8 text-contrast">Welcome to Emerald Palace</h1>
+               <p className="text-center text-white/90 text-contrast-shadow mb-8" role="status" aria-live="polite">
+                 <span className="sr-only">Welcome message: </span>
                  Save your profile by signing up with an email and make a password. Otherwise, sign in anonymously without an email.
+                 <span className="sr-only">Use the form below to get started.</span>
                </p>
                <SignInForm />
              </div>
           </Unauthenticated>
           
           <Authenticated>
+            {/* Page-specific help text for screen readers */}
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              {currentPage === "profile" && "Profile page: View and manage your personal information and settings."}
+              {currentPage === "gallery" && "Timeline page: Explore and manage your media collection and memories."}
+              {currentPage === "blog" && "Forum page: Share your thoughts and connect with the community."}
+              {currentPage === "about" && "About page: Learn more about Emerald Palace and how to use it."}
+            </div>
+
             {currentPage === "profile" && <Profile />}
             {currentPage === "gallery" && <Gallery />}
             {currentPage === "blog" && <Blog />}
