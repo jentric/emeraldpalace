@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useVideo } from "./VideoContext";
 import { useConvexAuth } from "convex/react";
 import VideoControls from "./VideoControls";
 import Playlist from "./Playlist";
+import HlsPlayer from "./HlsPlayer";
 
 function getSaveData(): boolean {
   try {
@@ -22,6 +23,7 @@ export default function BackgroundVideo() {
     playlist,
     currentIndex,
     setIndex,
+    next,
     isPlaying,
     play,
     pause,
@@ -38,6 +40,10 @@ export default function BackgroundVideo() {
   const rafRef = useRef<number | null>(null);
   // Track whether the user has interacted (to satisfy autoplay policies when unmuted)
   const userGestureRef = useRef<boolean>(false);
+  // Track the desired mute state from app/UI; only unmute after a user gesture
+  const desiredMutedRef = useRef<boolean>(true);
+  // React-visible user activation to control initial muted prop
+  const [activated, setActivated] = useState(false);
 
   // Fallback attempt tracking for variant URLs
   const candidateIndexRef = useRef<number>(0);
@@ -53,6 +59,7 @@ export default function BackgroundVideo() {
   const [ready, setReady] = useState(false);
   const [visibleOpacity, setVisibleOpacity] = useState(0);
   const [blocked, setBlocked] = useState(false); // NotAllowedError (autoplay) fallback UI
+  const [_isBuffering, setIsBuffering] = useState(false);
 
   const saveData = useMemo(getSaveData, []);
   const src = playlist[currentIndex]?.url ?? "";
@@ -61,8 +68,18 @@ export default function BackgroundVideo() {
   // Debug helper
   const dbg = (...args: any[]) => console.debug("[BGV]", ...args);
 
+  // Helper to check if HLS manifest exists (currently unused but available for future use)
+  const _checkHlsManifest = async (hlsUrl: string): Promise<boolean> => {
+    try {
+      const response = await fetch(hlsUrl, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
   // Apply/remove low-effects mode
-  const applyLowFx = (on: boolean) => {
+  const applyLowFx = useCallback((on: boolean) => {
     if (on && !lowFxAppliedRef.current) {
       document.documentElement.classList.add("ep-lowfx");
       lowFxAppliedRef.current = true;
@@ -74,7 +91,7 @@ export default function BackgroundVideo() {
       try { sessionStorage.removeItem("ep:lowfx"); } catch { /* no-op */ }
       dbg("lowfx: disabled");
     }
-  };
+  }, []);
 
   // Initialize lowfx from Data Saver or persisted preference; clean up on unmount
   useEffect(() => {
@@ -83,7 +100,7 @@ export default function BackgroundVideo() {
     if (saveData) initial = true; // honor OS/browser data saver
     applyLowFx(initial);
     return () => applyLowFx(false);
-  }, [saveData]);
+  }, [saveData, applyLowFx]);
 
   // Adaptive detection: if frame pacing is choppy, enable lowfx
   useEffect(() => {
@@ -157,7 +174,7 @@ export default function BackgroundVideo() {
     }, 2000);
 
     return () => { window.clearInterval(interval); };
-  }, [src]);
+  }, [src, applyLowFx]);
 
   // Build candidate URL variants to handle Unicode normalization + encoding differences
   function buildUrlCandidates(name: string, primarySrc: string): string[] {
@@ -197,7 +214,15 @@ export default function BackgroundVideo() {
       },
       applyState: (opts: { muted?: boolean; volume?: number }) => {
         if (!videoRef.current) return;
-        if (typeof opts.muted === "boolean") videoRef.current.muted = opts.muted;
+        if (typeof opts.muted === "boolean") {
+          // Record desired mute state from UI; only unmute if user has interacted
+          desiredMutedRef.current = opts.muted;
+          if (opts.muted) {
+            videoRef.current.muted = true;
+          } else if (userGestureRef.current) {
+            videoRef.current.muted = false;
+          }
+        }
         if (typeof opts.volume === "number") videoRef.current.volume = Math.min(1, Math.max(0, opts.volume));
       },
     };
@@ -218,16 +243,16 @@ export default function BackgroundVideo() {
     candidateIndexRef.current = 0;
 
     // Bandwidth hint
-    el.preload = saveData ? "metadata" : "auto";
+    // el.preload = saveData ? "metadata" : "auto";
     // Use first candidate; others attempted on error
-    el.src = candidatesRef.current[candidateIndexRef.current];
+    // el.src = candidatesRef.current[candidateIndexRef.current];
     // Baseline attributes for best autoplay behavior
-    el.autoplay = true;
-    el.playsInline = true;
+    // el.autoplay = true;
+    // el.playsInline = true;
     // iOS Safari hint; cast to any to avoid typing issues
-    (el as any).webkitPlaysInline = true;
+    // (el as any).webkitPlaysInline = true;
     // Start muted to satisfy autoplay; we still honor user preference after gesture
-    el.muted = true;
+    // el.muted = true;
 
     // Keep previous state alignment
     el.volume = volume;
@@ -241,7 +266,7 @@ export default function BackgroundVideo() {
       activeBgVideo = v;
     };
 
-    const setNextCandidate = () => {
+    const _setNextCandidate = () => {
       if (resolvedRef.current) return;
       const next = candidateIndexRef.current + 1;
       if (next < candidatesRef.current.length) {
@@ -287,6 +312,7 @@ export default function BackgroundVideo() {
     // Restore time after metadata loads and attempt to play
     const onLoadedMeta = () => {
       setReady(true);
+      setIsBuffering(false);
       dbg("loadedmetadata", { currentSrc: el.currentSrc, duration: el.duration });
       if (Number.isFinite(currentTime) && currentTime > 0) {
         let t = Math.max(0, currentTime);
@@ -302,26 +328,37 @@ export default function BackgroundVideo() {
     };
 
     const onCanPlay = () => {
+      setIsBuffering(false);
       setReady(true);
       resolvedRef.current = true;
-      dbg("canplay", { readyState: el.readyState, src: el.currentSrc });
+      dbg("canplay", { readyState: el.readyState, src: el.src });
       void tryPlay(el);
     };
 
     const onCanPlayThrough = () => {
+      setIsBuffering(false);
       setReady(true);
       resolvedRef.current = true;
-      dbg("canplaythrough", { readyState: el.readyState, src: el.currentSrc });
+      dbg("canplaythrough", { readyState: el.readyState, src: el.src });
       void tryPlay(el);
     };
 
     const onPlay = () => {
       ensureSingleActive(el);
     };
+    const _onWaiting = () => {
+      // Fired when playback has stopped because the next frame is not available
+      try { setIsBuffering(true); } catch { /* no-op */ }
+      dbg("waiting (buffering)", { src: el.currentSrc });
+    };
+    const _onPlaying = () => {
+      try { setIsBuffering(false); } catch { /* no-op */ }
+      dbg("playing", { src: el.currentSrc });
+    };
 
     const onEnded = () => {
-      dbg("ended, advancing", { from: currentIndex, to: currentIndex + 1 });
-      setIndex(currentIndex + 1);
+      dbg("ended, advancing (next)", { from: currentIndex });
+      try { next(); } catch { /* no-op */ }
     };
 
     const onTimeUpdate = () => {
@@ -338,9 +375,7 @@ export default function BackgroundVideo() {
     const onError = () => {
       const mediaErr = el.error;
       dbg("error", { code: mediaErr?.code, message: mediaErr?.message, currentSrc: el.currentSrc, attempt: candidateIndexRef.current + 1 });
-      if (!resolvedRef.current) {
-        setNextCandidate();
-      }
+      // Let HlsPlayer/hls.js handle recovery; do not override src here.
     };
 
     el.addEventListener("loadedmetadata", onLoadedMeta);
@@ -354,24 +389,18 @@ export default function BackgroundVideo() {
     // One-time real user gesture unblocks unmuted playback
     const onFirstGesture = () => {
       userGestureRef.current = true;
+      setActivated(true);
       // If already playing muted, unmute smoothly and ensure playing
-      el.muted = false;
+      if (!desiredMutedRef.current) {
+        el.muted = false;
+      }
       void tryPlay(el);
     };
     document.addEventListener("pointerdown", onFirstGesture, { once: true, passive: true, capture: true });
     document.addEventListener("keydown", onFirstGesture, { once: true, capture: true });
-
-    // Soft “simulated tap” (safe no-op if not needed; doesn't bypass browser policy)
-    requestAnimationFrame(() => {
-      try {
-        el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      } catch { /* no-op */ }
-    });
-
-    // Kick the first load explicitly for some browsers
-    try { el.load(); } catch { /* no-op */ }
-
+    
+    // No longer do a synthetic play gesture to maintain policy adherence.
+    
     return () => {
       el.removeEventListener("loadedmetadata", onLoadedMeta);
       el.removeEventListener("canplay", onCanPlay);
@@ -383,7 +412,22 @@ export default function BackgroundVideo() {
       document.removeEventListener("pointerdown", onFirstGesture, true);
       document.removeEventListener("keydown", onFirstGesture, true);
     };
-  }, [src, filename, currentIndex, setCurrentTime, setIndex, saveData, volume]);
+  }, [src, filename, currentIndex, setCurrentTime, setIndex, saveData, volume, next, applyLowFx, currentTime]);
+
+  // Page visibility optimization: pause decoding when tab is hidden, resume on visible
+  useEffect(() => {
+    const handle = () => {
+      const el = videoRef.current;
+      if (!el) return;
+      if (document.hidden) {
+        try { el.pause(); } catch { /* no-op */ }
+      } else if (isPlaying) {
+        void el.play().catch(() => { /* ignore */ });
+      }
+    };
+    document.addEventListener("visibilitychange", handle);
+    return () => document.removeEventListener("visibilitychange", handle);
+  }, [isPlaying, pause]);
   
   // Preload the next video (metadata only) to hide loading between transitions
   useEffect(() => {
@@ -392,8 +436,19 @@ export default function BackgroundVideo() {
     const el = preloadRef.current;
     if (!el || !nextUrl) return;
     el.preload = saveData ? "none" : "metadata";
-    el.src = nextUrl;
-    el.load();
+
+    // Skip preloading HLS manifests on browsers without native HLS (e.g., Chrome)
+    // to avoid blob/errors; Hls.js will manage loading when needed.
+    const isM3U8 = typeof nextUrl === "string" && nextUrl.toLowerCase().endsWith(".m3u8");
+    const nativeHls = !!(el.canPlayType && el.canPlayType("application/vnd.apple.mpegurl"));
+    if (isM3U8 && !nativeHls) return;
+
+    try {
+      el.src = nextUrl;
+      el.load();
+    } catch {
+      // ignore preload errors
+    }
   }, [currentIndex, playlist, saveData]);
    // Allow external UI to toggle low-effects mode via a custom event
   useEffect(() => {
@@ -409,7 +464,7 @@ export default function BackgroundVideo() {
     return () => {
       document.removeEventListener("ep:lowfx-toggle", onToggle as EventListener);
     };
-  }, []);
+  }, [applyLowFx]);
   
   // Eagerly load when signed in: increase preload and try muted playback to warm caches.
   useEffect(() => {
@@ -431,13 +486,19 @@ export default function BackgroundVideo() {
           });
       }
     }
-  }, [isAuthenticated, muted, saveData]);
+  }, [isAuthenticated, muted, saveData, pause, applyLowFx]);
   
   // Start playback on first user interaction (satisfies autoplay policies when unmuted or if previous attempts were blocked).
   useEffect(() => {
     if (!isAuthenticated) return;
     const handler = () => {
       userGestureRef.current = true;
+      setActivated(true);
+      // Respect previously requested unmute after user activation
+      const el = videoRef.current;
+      if (el && !desiredMutedRef.current) {
+        el.muted = false;
+      }
       if (!isPlaying) {
         // User gesture present; safe to start regardless of mute state.
         play();
@@ -473,18 +534,17 @@ export default function BackgroundVideo() {
     <>
       {/* Background video layer: fixed, behind all content; clicks pass through */}
       <div className="fixed inset-0 z-0 pointer-events-none" style={{ opacity: visibleOpacity }}>
-        <video
+        <HlsPlayer
+          key={src}
           ref={videoRef}
           className="ep-bg-video-el"
           src={src}
-          muted={muted}
+          muted={activated ? muted : true}
           playsInline
           loop={false}
           autoPlay
-          // preload is set via effect to respect Data Saver
           aria-hidden="true"
-          // Enhanced MPEG optimization
-          preload="metadata"
+          preload={saveData ? "metadata" : "auto"}
           controls={false}
           disablePictureInPicture
           disableRemotePlayback

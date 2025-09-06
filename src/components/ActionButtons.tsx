@@ -40,30 +40,17 @@ export default function ActionButtons() {
           onClick={handleUpload}
           className="ep-action-btn ep-upload-btn ep-btn group"
           aria-label="Upload media or files to your timeline"
+          aria-describedby="upload-info"
           title="Upload media or files (opens file picker)"
         >
-          <span className="text-lg transition-transform group-hover:scale-110" aria-hidden="true">⬆</span>
+          <span className="text-2xl transition-transform group-hover:scale-110" aria-hidden="true">⬆</span>
           <span className="sr-only">Upload content</span>
         </button>
 
-        {/* Info Icon */}
-        <button
-          onClick={() => setShowUploadInfo(!showUploadInfo)}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-black rounded-full flex items-center justify-center text-xs text-white hover:bg-gray-800 transition-colors"
-          aria-label="More information about upload feature"
-          title="Learn about uploading"
-        >
-          ℹ
-        </button>
-
-        {/* Info Tooltip */}
-        {showUploadInfo && (
-          <div className="absolute bottom-full right-0 mb-2 p-3 bg-black text-white text-xs rounded-lg shadow-lg max-w-xs z-50">
-            <div className="font-semibold mb-1">Upload Content</div>
-            <p>Share your favorite photos, videos, and documents with the community. Files are securely stored and shared.</p>
-            <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
-          </div>
-        )}
+        {/* Accessibility-only explainer for upload (kept for screen readers) */}
+        <div id="upload-info" className="sr-only" aria-hidden="false">
+          Use the upload button to add photos, videos, or documents to your timeline. Files are securely stored and shared.
+        </div>
       </div>
 
       {/* Post Button with Info Icon */}
@@ -71,36 +58,23 @@ export default function ActionButtons() {
         <button
           onClick={handlePost}
           className="ep-action-btn ep-post-btn ep-btn group"
-          aria-label="Create a new post in the forum"
-          title="Create a new forum post (opens post composer)"
+          aria-label="Write a new message to Emily"
+          aria-describedby="post-info"
+          title="Write a new message to Emily (opens composer)"
         >
-          <span className="text-lg transition-transform group-hover:scale-110" aria-hidden="true">📝</span>
-          <span className="sr-only">Create post</span>
+          <span className="text-2xl transition-transform group-hover:scale-110" aria-hidden="true">📝</span>
+          <span className="sr-only">Create message</span>
         </button>
 
-        {/* Info Icon */}
-        <button
-          onClick={() => setShowPostInfo(!showPostInfo)}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-black rounded-full flex items-center justify-center text-xs text-white hover:bg-gray-800 transition-colors"
-          aria-label="More information about posting feature"
-          title="Learn about posting"
-        >
-          ℹ
-        </button>
-
-        {/* Info Tooltip */}
-        {showPostInfo && (
-          <div className="absolute bottom-full right-0 mb-2 p-3 bg-black text-white text-xs rounded-lg shadow-lg max-w-xs z-50">
-            <div className="font-semibold mb-1">Create Posts</div>
-            <p>Share your thoughts, stories, and connect with others in the community forum. Start conversations and build connections.</p>
-            <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
-          </div>
-        )}
+        {/* Accessibility-only explainer for post (kept for screen readers) */}
+        <div id="post-info" className="sr-only" aria-hidden="false">
+          Use the message button to write a new message to Emily; opens the composer.
+        </div>
       </div>
 
       {/* Screen reader instructions */}
       <div className="sr-only" aria-live="polite" id="action-instructions">
-        Use the upload button to add media files, or the post button to share your thoughts in the community forum.
+        Use the upload button to add media files, or the message button to write to Emily.
       </div>
 
       {/* Modals */}
@@ -109,5 +83,3 @@ export default function ActionButtons() {
     </div>
   );
 }
-
-

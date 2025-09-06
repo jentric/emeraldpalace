@@ -31,3 +31,36 @@ if (convex) {
     </StrictMode>,
   );
 }
+
+// Service Worker registration (optional). Registers public/sw.js if supported.
+// Defer registration until window load to avoid interfering with dev tooling
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void (async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        // Log success
+        // eslint-disable-next-line no-console
+        console.debug("[SW] registered", reg);
+
+        // Listen for updates to the SW and attempt to activate immediately when requested by the SW
+        if (reg.waiting) {
+          try { reg.waiting.postMessage("skipWaiting"); } catch { /* no-op */ }
+        }
+        reg.addEventListener("updatefound", () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener("statechange", () => {
+            if (nw.state === "installed" && navigator.serviceWorker.controller) {
+              // New content available; try to activate immediately
+              try { reg.waiting?.postMessage("skipWaiting"); } catch { /* no-op */ }
+            }
+          });
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.debug("[SW] registration failed", err);
+      }
+    })();
+  });
+}

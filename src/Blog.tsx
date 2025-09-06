@@ -244,7 +244,7 @@ export default function Blog() {
       event.preventDefault();
       const file = event.dataTransfer?.files[0];
       if (file && file.type.startsWith("image/")) {
-        addImage(file);
+        void addImage(file);
       }
     },
     [addImage]
@@ -255,7 +255,7 @@ export default function Blog() {
       const file = event.clipboardData?.files[0];
       if (file && file.type.startsWith("image/")) {
         event.preventDefault();
-        addImage(file);
+        void addImage(file);
       }
     },
     [addImage]
@@ -298,7 +298,7 @@ export default function Blog() {
   if (!profile) {
     return (
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-emerald-800 mb-8">Memories</h1>
+        <h1 className="text-3xl font-bold text-emerald-800 mb-8">Messages to Emily</h1>
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
           Please complete your profile to view and share memories.
         </div>
@@ -309,7 +309,7 @@ export default function Blog() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-end justify-between mb-3">
-        <h1 className="text-2xl font-bold">Forum</h1>
+        <h1 className="text-2xl font-bold">Messages to Emily</h1>
         <span className="text-sm opacity-70">A cozy feed for our little group</span>
       </div>
 
@@ -365,7 +365,7 @@ export default function Blog() {
             <EditorContent editor={editor} className="prose max-w-none p-4" />
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="flex justify-end gap-3">
+        <form onSubmit={(e) => { void handleSubmit(e); }} className="flex justify-end gap-3">
           <button
             type="submit"
             disabled={!title.trim() || !editor?.getText().trim()}
@@ -386,7 +386,7 @@ export default function Blog() {
                 {post.authorId === user?._id && (
                   <button
                     type="button"
-                    onClick={() => handleDelete(post._id)}
+                    onClick={() => { void handleDelete(post._id); }}
                     className="text-red-600 hover:text-red-700 text-sm"
                   >
                     Delete

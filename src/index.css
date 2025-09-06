@@ -2,224 +2,127 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FORCE ALL TEXT TO BE BLACK - Global override */
-* {
-  color: #000000 !important;
+/* Ensure the page root does not paint a solid background so the background video can show through */
+html, body, #root {
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
-/* Ensure text elements are black */
-body, p, span, div, h1, h2, h3, h4, h5, h6, a, button, input, textarea, select, label, li, td, th, dt, dd, blockquote, cite, q, code, pre, kbd, samp, var {
-  color: #000000 !important;
-}
-
-/* Force black text for all text-based elements */
-::placeholder {
-  color: #000000 !important;
-  opacity: 0.7 !important;
-}
-
-:root {
-  --color-light: #fefefe;
-  --color-dark: #000000; /* Force black */
-  --color-pastel-pink: #fce7f3;
-  --color-pastel-blue: #dbeafe;
-  --color-pastel-green: #d1fae5;
-  --color-pastel-purple: #e9d5ff;
-  --color-pastel-yellow: #fef3c7;
-  --color-pastel-gray: #f7fafc;
-  --color-off-white: #000000; /* Force black */
-}
-
-.accent-text {
-  color: #000000; /* Black text for better contrast */
-  font-weight: 500;
-}
-
-/* Glassmorphism tokens and utilities - Updated for light pink theme */
-:root {
-  --glass-bg: rgba(255, 182, 193, 0.25); /* Very light pink background */
-  --glass-blur: 20px;
-  --glass-border: 2px; /* 2pt black outline as requested */
-  --glass-border-color: #000000; /* Black outline */
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.20);
-  --glass-hover: rgba(255, 182, 193, 0.35); /* Enhanced hover with light pink */
-  --border-radius: 12px; /* 12pt corner radius for all cards and divs */
-}
-
-.glass-elevated {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: var(--glass-border) solid var(--glass-border-color);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--border-radius);
-  color: #000000; /* Black text */
-}
-
-.glass-overlay {
-  background: rgba(255, 182, 193, 0.4); /* Light pink overlay */
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: var(--border-radius);
-}
-
-.glassmorphic-btn {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: var(--glass-border) solid var(--glass-border-color);
-  color: #000000; /* Black text */
-  border-radius: var(--border-radius);
-  font-weight: 600;
-  transition: all 0.2s ease;
-  box-shadow: var(--glass-shadow);
-}
-
-.glassmorphic-btn:hover {
-  background: var(--glass-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
-}
-
-/* 3D glass enhancement: subtle specular highlights + inner/outer depth */
-.glass-3d {
-  position: relative;
-  background-image:
-    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-  background-blend-mode: screen;
-  border-radius: inherit;
-  box-shadow:
-    var(--glass-shadow),
-    inset 0 1px 0 rgba(255,255,255,0.16),
-    inset 0 -2px 6px rgba(0,0,0,0.25);
-}
-.glass-3d::before,
-.glass-3d::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-}
-/* edge glints */
-.glass-3d::before {
-  background:
-    radial-gradient(120px 60px at 10% 0%, rgba(255,255,255,0.18), transparent 60%),
-    radial-gradient(120px 60px at 90% 100%, rgba(255,255,255,0.08), transparent 60%);
-}
-/* faint inner vignette to lift center contrast */
-.glass-3d::after {
-  background:
-    radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0,0,0,0.15) 100%);
-  mix-blend-mode: multiply;
-  opacity: 0.6;
-}
-/* Text contrast helper for readability on video-backed glass */
-.text-contrast {
-  color: #000000 !important; /* Black text for light backgrounds */
-  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
-}
-.text-contrast-shadow {
-  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
-}
-
-/* All text is now forced to black via global override */
-/* Utility: force white text on dark backgrounds */
-.text-on-dark { color: #ffffff !important; }
-
-/* Standard buttons */
-.ep-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 14px;
-  border-radius: var(--border-radius);
-  border: 2px solid #000000;
-  background: rgba(255, 255, 255, 0.6);
-  color: #000000;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-}
-.ep-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.ep-btn:active { transform: translateY(0); }
-.ep-btn--pink { background: rgba(255, 182, 193, 0.6); }
-
-/* Mobile slide-in menu */
-.ep-slide-menu {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  width: min(86vw, 360px);
-  background: rgba(255, 182, 193, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-left: 2px solid #000000;
-  z-index: 10000;
-  padding: 16px;
-  transform: translateX(100%);
-  transition: transform 200ms ease;
-}
-.ep-slide-menu.open { transform: translateX(0); }
-.ep-slide-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 9999;
-}
-.ep-menu-link { display:block; margin-bottom: 10px; }
-
-
-/* Pill buttons for header nav and actions */
-.pill-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 14px;
-  border-radius: var(--border-radius);
-  color: #000000; /* Black text */
-  text-decoration: none;
-  border: 1px solid rgba(0,0,0,0.2);
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  box-shadow: var(--glass-shadow);
-  transition: background-color 120ms ease, transform 80ms ease, border-color 120ms ease, opacity 120ms ease;
-}
-.pill-link:hover {
-  background-color: var(--glass-hover);
-  transform: translateY(-1px);
-  border-color: rgba(255,255,255,0.2);
-}
-.pill-link.primary {
-  border-color: rgba(16,185,129,0.35); /* emerald-ish */
-  background: linear-gradient(180deg, rgba(16,185,129,0.25), rgba(16,185,129,0.12));
-}
-.pill-link.subtle {
-  opacity: 0.9;
-}
+/* Global color reset removed — components define their own text colors.
+    Previous forced global black text made the UI unreadable on dark backgrounds.
+    Keep color variables below so individual components can use them. */
+/* Note: avoid global color overrides to preserve theme and modal contrast */
 
 .button {
   @apply bg-gradient-to-r bg-blue-500;
 }
 
 body {
-   font-family:
-     "Inter Variable",
-     ui-sans-serif,
-     system-ui,
-     -apple-system,
-     BlinkMacSystemFont,
-     "Segoe UI",
-     Roboto,
-     "Helvetica Neue",
-     Arial,
-     "Noto Sans",
-     sans-serif,
-     "Apple Color Emoji",
-     "Segoe UI Emoji",
-     "Segoe UI Symbol",
-     "Noto Color Emoji";
-  background: linear-gradient(135deg, var(--color-pastel-gray) 0%, var(--color-off-white) 100%);
+  font-family:
+    "Inter Variable",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    "Noto Sans",
+    sans-serif,
+    "Apple Color Emoji",
+    "Segoe UI Emoji",
+    "Segoe UI Symbol",
+    "Noto Color Emoji";
+  /* Make the app background transparent and borderless so the video shows through */
+  background: transparent !important;
+  border: none !important;
+  margin: 0;
+  padding: 0;
   font-size: 14pt;
   line-height: 1.6;
-  padding: 20px;
+  height: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* Ensure root and app containers fill the viewport and do not produce horizontal overflow */
+html, body, #root, main, #app {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden; /* Prevent horizontal leakage on small screens */
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Apply 90% opacity to most UI elements while preserving full opacity for media and interactive buttons */
+body * {
+  opacity: 1;
+  /* Keep compositing/painting isolated to avoid undesirable blending on some browsers */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Restore full opacity for media and interactive controls */
+body video,
+body audio,
+body img,
+body canvas,
+body svg,
+body picture,
+body source,
+body .ep-bg-video-el,
+body .ep-bg-controls,
+body button,
+body .ep-bg-btn,
+[role="button"] {
+  opacity: 1 !important;
+}
+
+/* Restrict elements from overflowing the viewport horizontally (prevents "leakage" into device frame) */
+html, body, #root, * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Helpful safe-area handling for full-bleed SPA on mobile */
+:root {
+  /* ensure layout respects the viewport on iOS Safari */
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+}
+
+/* Make sure any fixed-position floating UI stays within bounds on narrow viewports */
+.ep-bg-controls,
+.ep-playlist-toggle,
+.ep-action-buttons,
+.ep-playlist-panel {
+  left: auto;
+  right: 12px;
+  max-width: calc(100vw - 24px);
+}
+
+/* Reduce chances of rounded card shadows or borders creating scroll on small viewports */
+.glass-elevated,
+.glass-overlay,
+.card,
+.container,
+.panel,
+.wrapper {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* Restore full opacity (100%) for text, player controls, buttons, and user profile/avatar images */
+/* Explicitly list common text elements and UI controls so they stay fully visible */
+:where(body, h1, h2, h3, h4, h5, h6, p, span, a, li, label, strong, em, b, i, small) ,
+:where(.ep-bg-controls, .ep-bg-btn, .ep-btn, button, .ep-action-btn, input, textarea, select, .modern-primary-btn),
+:where(img, picture, video, canvas),
+:where(.rounded-full img, .w-32 img, .w-10 img, .w-6 img, .avatar img, .profile img, .author img, .profile-picture, .comment img) {
+  opacity: 1 !important;
 }
 
 .input-field {
@@ -380,7 +283,7 @@ textarea:focus-visible {
   /* Adjust playlist toggle position for mobile */
   .ep-playlist-toggle {
     position: fixed;
-    left: 50%;
+    left: 440px;
     transform: translateX(-50%);
     margin-left: 0;
     bottom: 12px;
@@ -419,13 +322,14 @@ textarea:focus-visible {
 .ep-bg-video-container {
   position: fixed;
   inset: 0;
-  z-index: 0; /* below app content (z-index: 1), above body background */
+  z-index: 5; /* above page backgrounds but below interactive UI (which use z >= 10) */
   pointer-events: none; /* don't block clicks */
   transition: opacity 400ms ease;
   background: transparent;
 }
 
 .ep-bg-video-el {
+  z-index: 0; /* keep video itself behind UI inside the video container */
   position: absolute;
   inset: 0;
   width: 100%;
@@ -462,7 +366,7 @@ textarea:focus-visible {
   gap: 12px;
   padding: 12px 16px;
   border-radius: var(--border-radius);
-  background: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   border: var(--glass-border) solid var(--glass-border-color);
@@ -471,6 +375,7 @@ textarea:focus-visible {
   font-size: 13px;
   line-height: 1;
   transition: all 0.3s ease;
+  height: var(--controls-height);
 }
 
 .ep-bg-btn {
@@ -494,11 +399,6 @@ textarea:focus-visible {
   background: var(--glass-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.ep-bg-btn:focus-visible {
-  outline: 2px solid #000000;
-  outline-offset: 2px;
 }
 
 .ep-bg-btn:disabled {
@@ -526,7 +426,7 @@ textarea:focus-visible {
 }
 
 @keyframes ep-marquee {
-  0% { transform: translateX(0%); }
+  0% { transform: translateX(0); }
   100% { transform: translateX(-100%); }
 }
 
@@ -551,7 +451,7 @@ textarea:focus-visible,
 .ep-playlist-toggle {
   all: unset;
   position: fixed;
-  bottom: 12px;
+  bottom: calc(var(--controls-height) + 16px + env(safe-area-inset-bottom));
   left: 12px; /* Align with video controls */
   z-index: 9999;
   cursor: pointer;
@@ -578,7 +478,7 @@ textarea:focus-visible,
 
 .ep-playlist-panel {
   position: fixed;
-  bottom: 60px;
+  bottom: calc(var(--controls-height) + 24px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 9998;
@@ -765,12 +665,17 @@ textarea:focus-visible,
 /* Action Buttons Styles - Glassmorphic Design */
 .ep-action-buttons {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 9999;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  z-index: 50; /* above background video and content */
+  pointer-events: none; /* allow underlying page to be clickable except buttons */
+}
+
+.ep-action-buttons > * {
+  pointer-events: auto; /* re-enable interaction on buttons */
 }
 
 .ep-action-btn {
@@ -849,7 +754,25 @@ textarea:focus-visible,
 
 /* Info buttons and tooltips */
 .info-button {
-  @apply w-6 h-6 bg-black rounded-full flex items-center justify-center text-xs text-white hover:bg-gray-800 transition-colors;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  padding: 8px 10px;
+  background: #ffffff; /* white background */
+  color: #000000; /* black text */
+  border: 2px solid #000000; /* 2pt black outline */
+  border-radius: 12px; /* 12pt rounded corners */
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: var(--glass-shadow);
+  transition: background-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
+}
+.info-button:hover {
+  background: #f6f6f6;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
 
 .info-tooltip {
@@ -893,6 +816,56 @@ textarea:focus-visible,
 @media (max-width: 480px) {
   .ep-bg-filename { max-width: 120px; }
   .ep-bg-volume { width: 80px; }
+
+  /* Make video controls compact on narrow viewports so they don't cover actions */
+  :root { --controls-height: 56px; }
+  .ep-bg-controls {
+    padding: 6px 10px;
+    gap: 6px;
+    border-radius: 12px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px; /* keep a small margin from bottom to avoid covering buttons */
+    align-items: center;
+    justify-content: space-between;
+    max-width: calc(100vw - 24px);
+    height: var(--controls-height);
+  }
+
+  /* Hide the marquee on mobile (we show truncated title + hamburger instead) */
+  .ep-bg-marquee {
+    display: none !important;
+  }
+
+  /* Truncate filename display on mobile */
+  .ep-bg-filename .truncate,
+  .ep-bg-filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100vw - 140px); /* leave room for buttons/volume */
+    display: inline-block;
+  }
+
+  /* Position playlist toggle above the compact controls so it doesn't overlap post buttons */
+  .ep-playlist-toggle {
+    position: fixed;
+    right: 18px;
+    bottom: calc(var(--controls-height) + 16px + env(safe-area-inset-bottom));
+    z-index: 9999;
+  }
+
+  /* Make the playlist panel compact and anchored above the controls on mobile */
+  .ep-playlist-panel {
+    width: calc(100vw - 24px);
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--controls-height) + 24px + env(safe-area-inset-bottom));
+    max-height: 48vh;
+    overflow: auto;
+    padding-bottom: 8px;
+    border-radius: 12px;
+  }
 }
 
 /* Adaptive low-effects mode for performance (auto-enabled by code when drops detected) */
@@ -916,4 +889,10 @@ textarea:focus-visible,
 /* Optional: slightly lower control background opacity in lowfx */
 .ep-lowfx .ep-bg-controls {
   background: rgba(17, 24, 39, 0.45) !important;
+}
+
+/* Utility: opt-in transparency for any custom surface */
+.ep-surface--transparent {
+  background: transparent !important;
+  background-color: transparent !important;
 }

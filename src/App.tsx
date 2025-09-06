@@ -15,6 +15,35 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useConvexAuth();
 
+  // Close mobile menu on route/page change (defensive in case navigation occurs elsewhere)
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [currentPage]);
+
+  // Disable background scroll while the slide-in menu is open (avoid scroll lock inconsistencies)
+  useEffect(() => {
+    const body = document.body;
+    const prev = body.style.overflow;
+    if (isMenuOpen) {
+      body.style.overflow = "hidden";
+    } else {
+      body.style.overflow = prev || "";
+    }
+    return () => {
+      body.style.overflow = prev || "";
+    };
+  }, [isMenuOpen]);
+
+  // Allow closing the menu with Escape key
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMenuOpen]);
+
   // Skip to main content handler
   const skipToMain = () => {
     const mainContent = document.querySelector('main');
@@ -27,7 +56,7 @@ export default function App() {
   // Left-side pills in header
   const menuItems = [
     { id: "gallery" as const, label: "Timeline" },
-    { id: "blog" as const, label: "Forum" },
+    { id: "blog" as const, label: "Messages" },
     { id: "about" as const, label: "About" },
   ];
 
@@ -36,9 +65,9 @@ export default function App() {
     if (!isAuthenticated) return;
     try {
       if (!sessionStorage.getItem("ep:welcomedBack")) {
-        toast("Welcome back! Visit the Forum to share.", {
+        toast("Welcome back! Visit Messages to share.", {
           action: {
-            label: "Open Forum",
+            label: "Open Messages",
             onClick: () => setCurrentPage("blog"),
           },
         });
@@ -61,11 +90,11 @@ export default function App() {
       </a>
 
       <BackgroundVideo />
-      <div className="relative z-[1] min-h-screen flex flex-col bg-transparent">
+      <div className="relative z-[10] min-h-screen flex flex-col bg-transparent">
         <header className="sticky top-0 z-10 glass-elevated glass-3d text-contrast p-6 mx-4 mt-4 rounded-2xl" role="banner">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Emerald Palace" className="w-10 h-10" />
+              <img src="/logo2.png" alt="Emerald Palace" className="w-10 h-10" />
               <h2 className="text-3xl font-semibold">Emerald Palace</h2>
             </div>
             {/* Desktop/Tablet nav - direct links */}
@@ -82,15 +111,22 @@ export default function App() {
                   {item.label}
                   <span id={`${item.id}-description`} className="sr-only">
                     {item.id === "gallery" && "View and explore your timeline of memories"}
-                    {item.id === "blog" && "Join the community forum to share and discuss"}
+                    {item.id === "blog" && "Open Messages to write notes to Emily and read what others have shared"}
                     {item.id === "about" && "Learn more about Emerald Palace"}
                   </span>
                 </button>
               ))}
             </nav>
-            {/* Spacer pushes sign out + hamburger to far right */}
+            {/* Spacer pushes user icon to far right */}
             <div className="ml-auto hidden md:flex items-center gap-3">
-              <SignOutButton />
+              <button
+                onClick={() => setCurrentPage("profile")}
+                className={`ep-btn ${currentPage === "profile" ? "ep-btn--pink" : ""}`}
+                aria-current={currentPage === "profile" ? "page" : undefined}
+                title="Go to your profile"
+              >
+                👤 Profile
+              </button>
             </div>
             {/* Hamburger button - only on mobile */}
             <button
@@ -112,34 +148,63 @@ export default function App() {
           </div>
 
           {/* Mobile slide-in menu */}
-          {isMenuOpen && <div className="ep-slide-overlay md:hidden" onClick={() => setIsMenuOpen(false)} aria-hidden />}
-          <nav id="mobile-navigation" className={`ep-slide-menu ${isMenuOpen ? "open" : ""} md:hidden`} role="navigation" aria-label="Mobile navigation menu">
-            <div className="flex items-center justify-between mb-4">
-              <div className="font-semibold">Menu</div>
-              <button type="button" className="ep-btn" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">Close</button>
-            </div>
-            {menuItems.map((item, index) => (
-              <button
-                key={item.id}
-                onClick={() => { setCurrentPage(item.id); setIsMenuOpen(false); }}
-                className="ep-btn ep-btn--pink ep-menu-link"
-                aria-current={currentPage === item.id ? "page" : undefined}
-                autoFocus={index === 0}
-              >
-                {item.label}
-              </button>
-            ))}
-            <div className="mt-4">
-              <SignOutButton />
-            </div>
-          </nav>
+          {isMenuOpen && (
+            <>
+            {/* Backdrop – click to close */}
+            <button
+              type="button"
+              aria-label="Close menu backdrop"
+              className="ep-slide-overlay md:hidden"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <nav
+              id="mobile-navigation"
+              className="ep-slide-menu open md:hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation menu"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="font-semibold">Menu</div>
+                <button
+                  type="button"
+                  className="ep-btn"
+                  onClick={() => setIsMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  Close
+                </button>
+              </div>
+              {menuItems.map((item, index) => (
+                <button
+                  key={item.id}
+                  onClick={() => { setCurrentPage(item.id); setIsMenuOpen(false); }}
+                  className="ep-btn ep-btn--pink ep-menu-link"
+                  aria-current={currentPage === item.id ? "page" : undefined}
+                  autoFocus={index === 0}
+                >
+                  {item.label}
+                </button>
+              ))}
+              <div className="mt-4">
+                <button
+                  onClick={() => { setCurrentPage("profile"); setIsMenuOpen(false); }}
+                  className="ep-btn ep-btn--pink ep-menu-link"
+                  aria-current={currentPage === "profile" ? "page" : undefined}
+                >
+                  👤 Profile
+                </button>
+              </div>
+            </nav>
+            </>
+          )}
         </header>
 
         <main id="main-content" className="flex-1 p-6 mx-4 mb-4" role="main" tabIndex={-1}>
           <Unauthenticated>
             <div className="max-w-md mx-auto glass-elevated glass-3d rounded-2xl border border-white/20 p-6 text-contrast" role="region" aria-labelledby="welcome-heading">
                <div className="flex justify-center mb-8">
-                 <img src="/logo.png" alt="Emerald Palace logo" className="w-20 h-20" />
+                 <img src="/logo2.png" alt="Emerald Palace logo" className="w-20 h-20" />
                </div>
                <h1 id="welcome-heading" className="text-4xl font-bold text-center mb-8 text-contrast">Welcome to Emerald Palace</h1>
                <p className="text-center text-white/90 text-contrast-shadow mb-8" role="status" aria-live="polite">
@@ -156,7 +221,7 @@ export default function App() {
             <div className="sr-only" aria-live="polite" aria-atomic="true">
               {currentPage === "profile" && "Profile page: View and manage your personal information and settings."}
               {currentPage === "gallery" && "Timeline page: Explore and manage your media collection and memories."}
-              {currentPage === "blog" && "Forum page: Share your thoughts and connect with the community."}
+              {currentPage === "blog" && "Messages page: Send messages to Emily and read what others have shared."}
               {currentPage === "about" && "About page: Learn more about Emerald Palace and how to use it."}
             </div>
 

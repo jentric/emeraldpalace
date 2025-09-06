@@ -32,19 +32,66 @@ export default function VideoControls({ filename }: { filename: string }) {
   };
 
   const [showOverflow, setShowOverflow] = useState(false);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
+
+  // Reflect playlist open state (announced by Playlist via 'ep:playlist-state')
+  useEffect(() => {
+    const onState = (ev: Event) => {
+      try { setPlaylistOpen(Boolean((ev as CustomEvent<boolean>).detail)); } catch { /* ignore */ }
+    };
+    window.addEventListener("ep:playlist-state", onState as EventListener);
+    return () => window.removeEventListener("ep:playlist-state", onState as EventListener);
+  }, []);
+
+  // Return true when a click/key event should NOT toggle the playlist (interactive controls)
+  const shouldIgnoreToggle = (target?: EventTarget | null) => {
+    let node = target as HTMLElement | null;
+    while (node) {
+      const tag = (node.tagName || "").toUpperCase();
+      if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return true;
+      try {
+        if (node.hasAttribute && node.hasAttribute("data-no-toggle")) return true;
+      } catch { /* ignore */ }
+      node = node.parentElement;
+    }
+    return false;
+  };
 
   const [showPlayerInfo, setShowPlayerInfo] = useState(false);
 
   return (
-    <div className="ep-bg-controls" role="region" aria-label="Background video controls" style={{maxWidth: "min(92vw, 980px)", flexWrap: "nowrap"}}>
-      <div className="ep-bg-filename relative" aria-live="polite" title={`Now playing: ${filename}`}>
+    <div
+      className="ep-bg-controls"
+      role="button"
+      tabIndex={0}
+      aria-label="Background video controls — toggle songs list"
+      aria-expanded={playlistOpen}
+      aria-controls="playlist-panel"
+      style={{ maxWidth: "min(92vw, 980px)", flexWrap: "nowrap" }}
+      onClick={(e) => {
+        if (shouldIgnoreToggle(e.target)) return;
+        try { window.dispatchEvent(new Event("ep:playlist-toggle")); } catch { /* ignore */ }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          try { window.dispatchEvent(new Event("ep:playlist-toggle")); } catch { /* ignore */ }
+        }
+      }}
+    >
+      <div className="ep-bg-filename relative flex items-center gap-2" aria-live="polite" title={`Now playing: ${filename}`}>
         <span className="sr-only">Current track: </span>
-        <span className="ep-bg-marquee pr-8" aria-hidden="true">{filename}&nbsp;&nbsp;&nbsp;</span>
+        {/* Desktop/large screens: keep marquee */}
+        <span className="ep-bg-marquee pr-8 hidden md:inline-block" aria-hidden="true">{filename}&nbsp;&nbsp;&nbsp;</span>
+        {/* Mobile: truncated title (no scrolling). Playlist toggle moved to the player-bar container for a single accessible toggle target. */}
+        <div className="flex items-center gap-2 md:hidden">
+          <span className="truncate max-w-[52vw] text-sm" aria-hidden="true">{filename.replace(/\.mp4$/i, "")}</span>
+        </div>
 
         {/* Player Info Button */}
         <button
           onClick={() => setShowPlayerInfo(!showPlayerInfo)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center text-xs text-white hover:bg-black transition-colors"
+          className="absolute right-0 top-1/2 -translate-y-1/2 info-button"
           aria-label="Information about the music playlist"
           title="Learn about Em's music collection"
         >
@@ -53,7 +100,7 @@ export default function VideoControls({ filename }: { filename: string }) {
 
         {/* Player Info Tooltip */}
         {showPlayerInfo && (
-          <div className="absolute top-full left-0 mt-2 p-3 bg-black text-white text-xs rounded-lg shadow-lg max-w-sm z-50">
+          <div className="info-tooltip absolute top-full left-0 mt-2 max-w-sm z-50">
             <div className="font-semibold mb-1">🎵 Em's Favorite Songs</div>
             <p className="mb-2">These are some of Em's most cherished songs that have special meaning. Each track tells a story and captures a moment in time.</p>
             <p className="text-xs opacity-90">💡 <strong>Want to add more?</strong> Use the "Suggest More" button in the playlist to submit your favorite songs!</p>
@@ -181,12 +228,10 @@ export default function VideoControls({ filename }: { filename: string }) {
         </button>
         {showOverflow && (
           <div role="menu" className="absolute right-0 bottom-full mb-2 bg-white/90 border border-black rounded-xl p-2 shadow-xl flex flex-col min-w-[140px] z-10">
-            <button role="menuitem" className="ep-btn ep-btn--pink mb-2" onClick={() => { setShowOverflow(false); try { document.dispatchEvent(new Event("ep:lowfx-toggle")); } catch {} }}>
-              Toggle FX
-            </button>
-            <button role="menuitem" className="ep-btn" onClick={() => { setShowOverflow(false); try { window.dispatchEvent(new Event("ep:playlist-toggle")); } catch {} }}>
-              Songs
-            </button>
+            <button role="menuitem" className="ep-btn ep-btn--pink mb-2" onClick={() => { setShowOverflow(false); try { document.dispatchEvent(new Event("ep:lowfx-toggle")); } catch (e) { /* ignore */ } }}>
+               Toggle FX
+             </button>
+            {/* Removed duplicate "Songs" menu item — playlist toggle is provided on the player bar container */}
           </div>
         )}
       </div>

@@ -104,20 +104,15 @@ export default function Playlist() {
     };
   }, []);
 
+  // Announce playlist open state for external UI (e.g., player bar) to consume for accessibility
+  React.useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent("ep:playlist-state", { detail: isOpen })); } catch { /* ignore */ }
+  }, [isOpen]);
+
   return (
     <>
-      {/* Playlist Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="ep-playlist-toggle ep-btn"
-        aria-label={isOpen ? "Close playlist" : "Open playlist"}
-        aria-expanded={isOpen}
-        aria-controls="playlist-panel"
-      >
-        <span className="text-lg">🎵</span>
-        <span className="ml-1 text-xs">{isOpen ? "Hide" : "Songs"}</span>
-      </button>
-
+      {/* Playlist is toggled from the player-bar container; button removed to provide a single consolidated toggle target. */}
+      
       {/* Playlist Panel */}
       {isOpen && (
         <div
@@ -192,4 +187,3 @@ export default function Playlist() {
     </>
   );
 }
-

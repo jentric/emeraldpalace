@@ -124,6 +124,9 @@ export default function Gallery() {
 
   // video autoplay
   const videoObserverRef = useRef<IntersectionObserver | null>(null);
+  // Per-video buffering state and cleanup registry
+  const [bufferingMap, setBufferingMap] = useState<Record<string, boolean>>({});
+  const cleanupRef = useRef<Record<string, () => void>>({});
   const [unmuted, setUnmuted] = useState<Record<string, boolean>>({});
   const unmutedRef = useRef(unmuted);
   useEffect(() => { unmutedRef.current = unmuted; }, [unmuted]);
@@ -159,6 +162,13 @@ export default function Gallery() {
 
   // mirror paginated media into local state
   useEffect(() => { if (media) setLocalMedia(media.slice()); }, [media]);
+  useEffect(() => {
+    return () => {
+      // cleanup any attached listeners on unmount
+      try { Object.values(cleanupRef.current).forEach(fn => fn()); } catch { /* no-op */ }
+      cleanupRef.current = {};
+    };
+  }, []);
 
   // counts merged via useInteractions
 
@@ -271,9 +281,16 @@ export default function Gallery() {
             <button type="submit" disabled={uploading} className="w-full text-sm py-2 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{uploading ? 'Uploading...' : 'Upload'}</button>
           </form>
         ) : (
-          <label className="mb-4 break-inside-avoid block p-6 rounded-lg border-2 border-dashed border-emerald-200 hover:border-emerald-400 text-center cursor-pointer bg-white/60 backdrop-blur-sm text-sm text-emerald-700 shadow-sm hover:shadow transition">
-            <div className="font-medium">Add photo or video</div>
-            <div className="text-xs text-emerald-600 mt-1">Click or drag & drop</div>
+          <label className="mb-4 break-inside-avoid block p-8 rounded-lg border-2 border-dashed border-emerald-200 hover:border-emerald-400 text-center cursor-pointer bg-white/60 backdrop-blur-sm text-sm text-emerald-700 shadow-sm hover:shadow transition group">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                <span className="text-2xl">📷</span>
+              </div>
+              <div>
+                <div className="font-medium text-lg">Share a photo or video</div>
+                <div className="text-xs text-emerald-600 mt-1">Click to upload or drag and drop</div>
+              </div>
+            </div>
             <input type="file" accept="image/*,video/*" onChange={(e) => { void handleFileSelect(e); }} className="hidden" />
           </label>
         )}
@@ -289,7 +306,53 @@ export default function Gallery() {
                 <img src={item.url || undefined} alt={item.title} loading="lazy" className="w-full h-auto object-cover block transition-transform duration-300 group-hover:scale-[1.02]" />
               ) : (
                 <div className="relative">
-                  <video data-media-id={item._id} ref={(el) => { if (!el) return; el.dataset.mediaId = item._id; el.muted = !(unmuted[item._id] || false); videoObserverRef.current?.observe(el); }} src={item.url || undefined} preload="metadata" className="w-full h-auto object-cover block" playsInline />
+                  <video
+                    data-media-id={item._id}
+                    ref={(el) => {
+                      const id = String(item._id);
+                      // If element is null (unmount), run existing cleanup for this id
+                      if (!el) {
+                        try { cleanupRef.current[id]?.(); } catch { /* no-op */ }
+                        delete cleanupRef.current[id];
+                        return;
+                      }
+                      // assign dataset + muted + observe
+                      el.dataset.mediaId = item._id;
+                      el.muted = !(unmuted[item._id] || false);
+                      videoObserverRef.current?.observe(el);
+
+                      // remove any previous handlers for this id before attaching new ones
+                      try { cleanupRef.current[id]?.(); } catch { /* no-op */ }
+
+                      const onWaiting = () => setBufferingMap(prev => ({ ...(prev || {}), [id]: true }));
+                      const onPlaying = () => setBufferingMap(prev => ({ ...(prev || {}), [id]: false }));
+
+                      el.addEventListener("waiting", onWaiting);
+                      el.addEventListener("playing", onPlaying);
+                      el.addEventListener("canplay", onPlaying);
+                      el.addEventListener("canplaythrough", onPlaying);
+
+                      cleanupRef.current[id] = () => {
+                        try {
+                          el.removeEventListener("waiting", onWaiting);
+                          el.removeEventListener("playing", onPlaying);
+                          el.removeEventListener("canplay", onPlaying);
+                          el.removeEventListener("canplaythrough", onPlaying);
+                        } catch { /* no-op */ }
+                        delete cleanupRef.current[id];
+                      };
+                    }}
+                    src={item.url || undefined}
+                    preload="metadata"
+                    className="w-full h-auto object-cover block"
+                    playsInline
+                  />
+                  {/* Buffering spinner for this thumbnail */}
+                  {bufferingMap[String(item._id)] && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-8 h-8 border-3 border-white/80 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
                   <button onClick={(e: MouseEvent) => { e.stopPropagation(); const id = String(item._id); setUnmuted(prev => { const next: Record<string, boolean> = { ...(prev || {}), [id]: !(prev?.[id] || false) }; const vids = document.querySelectorAll(`video[data-media-id="${id}"]`); vids.forEach(v => { (v as HTMLVideoElement).muted = !next[id]; }); return next; }); }} className="absolute top-2 left-2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-sm" title={unmuted[String(item._id)] ? 'Mute' : 'Unmute'}>{unmuted[String(item._id)] ? '🔊' : '🔇'}</button>
                 </div>
               )}
@@ -356,6 +419,15 @@ export default function Gallery() {
           }}
           unmuted={!!unmuted[list[selectedIndex]._id]}
           toggleMute={() => { if (selectedIndex === null) return; const id = list[selectedIndex]._id; setUnmuted(prev => { const next = { ...(prev || {}), [id]: !(prev?.[id] || false) }; const vids = document.querySelectorAll(`video[data-media-id="${id}"]`); vids.forEach(v => { (v as HTMLVideoElement).muted = !next[id]; }); return next; }); }}
+          currentIndex={selectedIndex}
+          totalItems={list.length}
+          onNavigate={(direction: 'next' | 'prev') => {
+            if (selectedIndex === null) return;
+            const newIndex = direction === 'next' 
+              ? (selectedIndex + 1) % list.length 
+              : (selectedIndex - 1 + list.length) % list.length;
+            setSelectedIndex(newIndex);
+          }}
         />
       )}
     </div>
@@ -363,16 +435,75 @@ export default function Gallery() {
 }
 
 // --- Fullscreen modal component ---
-function FullscreenMediaModal({ item, onClose, canEdit, onDelete, onSaveInline, unmuted, toggleMute }: {
+function FullscreenMediaModal({ item, onClose, canEdit, onDelete, onSaveInline, unmuted, toggleMute, currentIndex, totalItems, onNavigate }: {
   item: MediaItem; onClose: () => void; canEdit: boolean; onDelete: () => void | Promise<void>;
   onSaveInline: (title: string, caption?: string, visibleTo?: Relationship[], category?: string) => void | Promise<void>;
   unmuted: boolean; toggleMute: () => void;
+  currentIndex: number; totalItems: number; onNavigate: (direction: 'next' | 'prev') => void;
 }) {
   const counts = useQuery(api.interactions.counts, item ? { mediaId: item._id } : "skip");
   const toggleLike = useMutation(api.interactions.toggleLike);
   const toggleSave = useMutation(api.interactions.toggleSave);
   const [showEdit, setShowEdit] = useState(false);
   const [optimistic, setOptimistic] = useState<{ liked?: boolean; saved?: boolean; likeCountDelta: number; saveCountDelta: number }>({ likeCountDelta: 0, saveCountDelta: 0 });
+
+  // Touch/swipe handling
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Minimum swipe distance (in px)
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      onNavigate('next');
+    } else if (isRightSwipe) {
+      onNavigate('prev');
+    }
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          e.preventDefault();
+          onNavigate('prev');
+          break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+          e.preventDefault();
+          onNavigate('next');
+          break;
+        case 'Escape':
+          e.preventDefault();
+          onClose();
+          break;
+        case ' ':
+        case 'Enter':
+          // Don't prevent default for space/enter as they might be used for other interactions
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onNavigate, onClose]);
 
   async function handleLike() {
     if (!item) return; const curr = counts?.liked || false; setOptimistic(o => ({ ...o, liked: !curr, likeCountDelta: o.likeCountDelta + (curr ? -1 : 1) }));
@@ -391,10 +522,48 @@ function FullscreenMediaModal({ item, onClose, canEdit, onDelete, onSaveInline, 
   // Pinch/zoom: use CSS overscroll + gesture hint; we rely on browser native pinch to zoom image/video (object-contain) plus allow double click to toggle cover mode.
   const [cover, setCover] = useState(false);
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/95 touch-none">
+    <div 
+      className="fixed inset-0 z-50 flex flex-col bg-black touch-none"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Navigation arrows */}
+      {totalItems > 1 && (
+        <>
+          <button
+            onClick={() => onNavigate('prev')}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center text-2xl hover:bg-black/80 transition-colors z-20"
+            aria-label="Previous media"
+            title="Previous (←)"
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => onNavigate('next')}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 text-white flex items-center justify-center text-2xl hover:bg-black/80 transition-colors z-20"
+            aria-label="Next media"
+            title="Next (→)"
+          >
+            ›
+          </button>
+        </>
+      )}
+
+      {/* Close button */}
       <div className="absolute top-3 left-3 z-10 flex gap-2">
-        <button onClick={onClose} className="w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center text-lg hover:bg-black/80" aria-label="Close">×</button>
+        <button onClick={onClose} className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center text-lg hover:bg-black" aria-label="Close">×</button>
       </div>
+
+      {/* Position indicator */}
+      {totalItems > 1 && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10">
+          <div className="bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+            {currentIndex + 1} of {totalItems}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="relative max-w-[min(100%,900px)] w-full">
           <div className="w-full aspect-[3/4] md:aspect-[4/3] bg-gray-100 rounded-2xl overflow-hidden flex items-center justify-center">
@@ -414,7 +583,7 @@ function FullscreenMediaModal({ item, onClose, canEdit, onDelete, onSaveInline, 
           <button onClick={(e) => { e.preventDefault(); void handleLike(); }} className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition ${likeActive ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>❤️ {likeCount}</button>
           <button onClick={(e) => { e.preventDefault(); void handleSave(); }} className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition ${saveActive ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>💾 {saveCount}</button>
           <a href="#comments" className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700">💬 Comments</a>
-          {canEdit && <button onClick={() => setShowEdit(s => !s)} className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700">✎ Edit</button>}
+          {canEdit && <button onClick={() => setShowEdit(s => !s)} className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition ${showEdit ? 'bg-emerald-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}>✎ Edit</button>}
           {canEdit && <button onClick={() => { void onDelete(); }} className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium bg-red-600 text-white">Delete</button>}
           <div className="ml-auto text-xs text-gray-500 truncate max-w-[40%]">
             <strong className="font-medium text-gray-800 mr-1">{item.title}</strong>
