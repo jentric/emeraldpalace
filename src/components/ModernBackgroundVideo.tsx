@@ -32,7 +32,6 @@ export default function ModernBackgroundVideo() {
   const [isVisible, setIsVisible] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [consecutiveCodecErrors, setConsecutiveCodecErrors] = useState(0);
 
   const src = playlist[currentIndex]?.url ?? '';
   const filename = playlist[currentIndex]?.name ?? '';
@@ -78,9 +77,7 @@ export default function ModernBackgroundVideo() {
 
     const loadVideo = async () => {
       try {
-        console.log(`[ModernBackgroundVideo] Loading video: ${filename} (index: ${currentIndex})`);
         setError(null);
-        setConsecutiveCodecErrors(0); // Reset codec error counter on successful video load
         setIsReady(false);
         setIsBuffering(true);
 
@@ -134,24 +131,12 @@ export default function ModernBackgroundVideo() {
                          error.message.includes('Video format not supported');
 
     if (isFormatError) {
-      console.log(`[ModernBackgroundVideo] Format/codec error detected for ${filename} - this video may be corrupted or incompatible`);
 
-      // Track consecutive codec errors
-      setConsecutiveCodecErrors(prev => {
-        const newCount = prev + 1;
-        console.log(`[ModernBackgroundVideo] Consecutive codec errors: ${newCount}`);
-
-        // If we've had 3+ consecutive codec errors, the entire playlist might have codec issues
-        if (newCount >= 3) {
-          console.warn('[ModernBackgroundVideo] Multiple videos failing with codec errors - this may be a browser compatibility issue');
-        }
-
-        return newCount;
-      });
+      // Log codec error for monitoring
+      console.warn('[ModernBackgroundVideo] Multiple videos failing with codec errors - this may be a browser compatibility issue');
 
       // Clear error state and force video reload
       setTimeout(() => {
-        console.log('[ModernBackgroundVideo] Clearing error state and forcing reload');
         setError(null);
         // Force a re-render by updating a state that triggers the video loading effect
         setIsBuffering(true);
@@ -159,7 +144,6 @@ export default function ModernBackgroundVideo() {
 
       // For format errors, advance to next video after a short delay
       setTimeout(() => {
-        console.log('[ModernBackgroundVideo] Auto-advancing to next video due to format error');
         try {
           next();
         } catch (nextError) {
@@ -167,8 +151,7 @@ export default function ModernBackgroundVideo() {
         }
       }, 1000); // Give reset a chance to work first
     } else {
-      // For network or temporary errors, reset codec error counter
-      setConsecutiveCodecErrors(0);
+      // Network or temporary error - will retry normally
 
       // For network or temporary errors, wait longer before retrying
       console.log('Network or temporary error detected - waiting before advancing');
@@ -321,37 +304,6 @@ export default function ModernBackgroundVideo() {
         </div>
       )}
 
-      {/* Performance debug info (development only) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-4 left-4 z-50 bg-black/70 backdrop-blur-sm rounded p-2 text-white text-xs font-mono max-w-sm">
-          <div>FPS: {performanceMonitor.getCurrentMetrics().fps.toFixed(1)}</div>
-          <div>Buffered: {isBuffering ? 'Yes' : 'No'}</div>
-          <div>Cache: {videoCache.getStats().entries} entries</div>
-          <div>Ready: {isReady ? 'Yes' : 'No'}</div>
-          <div>Error: {error ? 'Yes' : 'No'}</div>
-          <div>Current: {currentIndex + 1}/{playlist.length}</div>
-          <div className="truncate">Video: {filename}</div>
-          <div>Codec Errors: {consecutiveCodecErrors}</div>
-          {error && (
-            <div className="text-red-300 mt-1">
-              <div className="truncate">Err: {error.message}</div>
-              <div className="text-xs text-gray-400 truncate">File: {filename}</div>
-              {error.message.includes('format not supported') && (
-                <div className="text-yellow-300">→ HLS/Codec Issue</div>
-              )}
-              {error.message.includes('Video format not supported') && (
-                <div className="text-orange-300">→ General Codec Issue</div>
-              )}
-              {error.message.includes('network') && (
-                <div className="text-blue-300">→ Network Issue</div>
-              )}
-              {(filename && (filename.includes('Rina Sawayama') || filename.includes('Michelle Branch') || error.message.includes('codec'))) && (
-                <div className="text-purple-300">→ H.264 High Profile Issue</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* User-friendly error message for production */}
       {process.env.NODE_ENV !== 'development' && error && (

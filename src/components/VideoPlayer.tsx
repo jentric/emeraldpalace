@@ -45,13 +45,6 @@ export default function VideoPlayer({
     const isFirefox = /Firefox/i.test(userAgent);
     const isChrome = /Chrome/i.test(userAgent);
 
-    console.log('[VideoPlayer] Browser detection:', { isMobile, isSafari, isFirefox, isChrome });
-    console.log('[VideoPlayer] Codec support check:', {
-      h264High: h264High !== '',
-      h264Main: h264Main !== '',
-      h264Baseline: h264Baseline !== '',
-      aacLC: aacLC !== ''
-    });
 
     return {
       h264Supported: h264High !== '' || h264Main !== '' || h264Baseline !== '',
@@ -65,7 +58,6 @@ export default function VideoPlayer({
   // Initialize HLS streaming with codec checking and better error handling
   const initializeHLS = useCallback(async (video: HTMLVideoElement, source: string) => {
     try {
-      console.log('[VideoPlayer] Initializing HLS for:', source);
 
       // Check if this is the known problematic video
       const isRinaSawayama = source.includes('Rina%20Sawayama');
@@ -79,9 +71,6 @@ export default function VideoPlayer({
       // Provide specific warnings based on browser and codec support
       if (!codecSupport.h264HighSupported) {
         console.warn('[VideoPlayer] H.264 High Profile not supported - this affects the Rina Sawayama video');
-        if (codecSupport.browser.isMobile) {
-          console.log('[VideoPlayer] Mobile browser detected - trying simplified HLS config');
-        }
       }
 
       if (!codecSupport.hasBasicSupport) {
@@ -94,7 +83,6 @@ export default function VideoPlayer({
         });
 
         if (mp4Fallback !== source) {
-          console.log('[VideoPlayer] Trying MP4 fallback due to codec incompatibility');
           video.src = mp4Fallback;
           return;
         }
@@ -103,10 +91,8 @@ export default function VideoPlayer({
       // Dynamic import of HLS.js for better bundle splitting
       const { default: Hls } = await import('hls.js');
 
-      console.log('[VideoPlayer] HLS.js loaded, isSupported:', Hls.isSupported());
 
       if (!Hls.isSupported()) {
-        console.log('[VideoPlayer] HLS not supported natively, using direct src');
         // Fallback to native HLS support (Safari) or try MP4 fallback
         video.src = source;
         return;
@@ -118,13 +104,11 @@ export default function VideoPlayer({
         if (!manifestResponse.ok) {
           throw new Error(`HLS manifest not accessible: ${manifestResponse.status}`);
         }
-        console.log('[VideoPlayer] HLS manifest accessible');
 
         // Also test if we can access a segment file
         const testSegmentUrl = source.replace('index.m3u8', 'seg000.ts');
         try {
           const segmentResponse = await fetch(testSegmentUrl, { method: 'HEAD' });
-          console.log('[VideoPlayer] Test segment accessible:', segmentResponse.ok, 'status:', segmentResponse.status);
           if (!segmentResponse.ok) {
             console.warn('[VideoPlayer] Segment file not accessible - this may cause HLS loading issues');
           }
@@ -142,7 +126,6 @@ export default function VideoPlayer({
         });
 
         if (mp4Fallback !== source) {
-          console.log('[VideoPlayer] Attempting MP4 fallback:', mp4Fallback);
 
           // Check if MP4 exists before trying
           try {
@@ -160,7 +143,6 @@ export default function VideoPlayer({
 
         // Development fallback: try a simple test to verify video element works
         if (process.env.NODE_ENV === 'development') {
-          console.log('[VideoPlayer] HLS manifest not accessible, trying development test');
           // Create a simple test video element to verify the video system works
           video.src = '';
           setIsReady(true);
@@ -169,7 +151,6 @@ export default function VideoPlayer({
         }
 
         // Final fallback: try to load as native HLS (for Safari) or show error
-        console.log('[VideoPlayer] All HLS fallbacks failed, trying native HLS support');
         video.src = source;
         return;
         throw fetchError;
@@ -218,31 +199,24 @@ export default function VideoPlayer({
 
       // Event handlers
       hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-        console.log('[VideoPlayer] Media attached, loading source:', source);
         hls.loadSource(source);
       });
 
       hls.on(Hls.Events.MANIFEST_LOADING, () => {
-        console.log('[VideoPlayer] Manifest loading started');
+        // Manifest loading started
       });
 
-      hls.on(Hls.Events.MANIFEST_LOADED, (_event: any, data: any) => {
-        console.log('[VideoPlayer] Manifest loaded successfully:', {
-          levels: data.levels?.length,
-          audioTracks: data.audioTracks?.length,
-          subtitles: data.subtitles?.length,
-          url: data.url
-        });
+      hls.on(Hls.Events.MANIFEST_LOADED, (_event: any, _data: any) => {
         setIsReady(true);
         onReady?.();
       });
 
-      hls.on(Hls.Events.LEVEL_LOADING, (_event: any, data: any) => {
-        console.log('[VideoPlayer] Level loading:', data.level);
+      hls.on(Hls.Events.LEVEL_LOADING, (_event: any, _data: any) => {
+        // Level loading
       });
 
-      hls.on(Hls.Events.LEVEL_LOADED, (_event: any, data: any) => {
-        console.log('[VideoPlayer] Level loaded:', data.level, 'details:', data.details);
+      hls.on(Hls.Events.LEVEL_LOADED, (_event: any, _data: any) => {
+        // Level loaded
       });
 
       hls.on(Hls.Events.BUFFER_APPENDED, () => {
@@ -348,9 +322,9 @@ export default function VideoPlayer({
         onError?.(hlsError);
       });
 
-      // Add some debug logging
-      hls.on(Hls.Events.FRAG_LOADED, (_event: any, data: any) => {
-        console.log('[VideoPlayer] Fragment loaded:', data.frag?.url);
+      // Fragment loaded event
+      hls.on(Hls.Events.FRAG_LOADED, (_event: any, _data: any) => {
+        // Fragment loaded
       });
 
     } catch (err) {
@@ -379,7 +353,6 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
 
-    console.log('[VideoPlayer] Initializing video for:', src);
 
     // Reset state
     setError(null);
@@ -403,10 +376,8 @@ export default function VideoPlayer({
 
     try {
       if (isHLS) {
-        console.log('[VideoPlayer] Detected HLS source, initializing HLS player');
         await initializeHLS(video, src);
       } else {
-        console.log('[VideoPlayer] Loading regular video source');
         // Regular video file
         video.src = src;
         setIsReady(true);
@@ -545,7 +516,6 @@ export default function VideoPlayer({
                   enableEMMSG: false,
                 });
 
-                console.log('[VideoPlayer] Initializing fallback HLS with minimal config');
                 fallbackHls.attachMedia(video);
 
                 fallbackHls.on(FallbackHls.Events.ERROR, (_event: any, data: any) => {
