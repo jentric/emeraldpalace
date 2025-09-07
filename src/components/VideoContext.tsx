@@ -1,35 +1,50 @@
 import React, { createContext, useCallback, useContext, useRef, useState, useEffect } from "react";
+import { videoCache } from "./VideoCache";
 
-type PlaylistItem = { name: string; url: string };
+export interface PlaylistItem {
+  name: string;
+  url: string;
+  duration?: number;
+  thumbnail?: string;
+}
 
-type DomControls = {
+export interface DomControls {
   play: () => void;
   pause: () => void;
-  seek: (t: number) => void;
+  seek: (time: number) => void;
   applyState: (opts: { muted?: boolean; volume?: number }) => void;
-};
+}
 
-type VideoContextValue = {
+export interface VideoContextValue {
+  // Playlist management
   playlist: PlaylistItem[];
   currentIndex: number;
-  setIndex: (idx: number) => void;
-  /**
-   * Advance to the next item according to the persistent shuffled play order.
-   * Ensures no immediate repeats and reshuffles when a cycle completes.
-   */
+  setIndex: (index: number) => void;
+
+  // Playback state
   currentTime: number;
-  setCurrentTime: (t: number) => void;
+  setCurrentTime: (time: number) => void;
   isPlaying: boolean;
   play: () => void;
   pause: () => void;
+
+  // Audio controls
   muted: boolean;
-  setMuted: (m: boolean) => void;
+  setMuted: (muted: boolean) => void;
   volume: number;
-  setVolume: (v: number) => void;
+  setVolume: (volume: number) => void;
+
+  // Navigation
   next: () => void;
   prev: () => void;
+
+  // Controls registration
   registerDomControls: (controls: DomControls | null) => void;
-};
+
+  // Cache management
+  preloadNext: () => void;
+  clearCache: () => void;
+}
 
 const VideoContext = createContext<VideoContextValue | null>(null);
 
@@ -40,28 +55,28 @@ function encodePath(name: string) {
 
 function buildPlaylist(): PlaylistItem[] {
   const files = [
-    "CNCO - Reggaetón Lento (Bailemos).mp4",
-    "Caroline Polachek - Ocean of Tears.mp4",
-    "Chloe x Halle - Do It .mp4",
-    "FKA twigs - thank you song.mp4",
-    "Fleetwood Mac - Landslide (Live).mp4",
-    "Imogen Heap - Goodnight and Go.mp4",
-    "Jimmy Eat World - Sweetness.mp4",
-    "JoJo - Leave (Get Out).mp4",
-    "JoJo - Too Little Too Late.mp4",
-    "Julian Casablancas+The Voidz - Human Sadness.mp4",
-    "LANA DEL REY - CARMEN.mp4",
-    "LCD Soundsystem - american dream.mp4",
-    "Mazzy Star - Fade Into You.mp4",
-    "Michelle Branch - Everywhere.mp4",
-    "Natasha Bedingfield - Unwritten.mp4",
-    "Paris Hilton - Stars Are Blind.mp4",
-    "Rina Sawayama - Hurricanes.mp4",
-    "The Strokes - Automatic Stop Live Lollapalooza.mp4",
-    "The Veronicas - Untouched.mp4",
-    "Tinashe - Bouncin.mp4",
+    "CNCO - Reggaetón Lento (Bailemos)",
+    "Caroline Polachek - Ocean of Tears",
+    "Chloe x Halle - Do It",
+    "FKA twigs - thank you song",
+    "Fleetwood Mac - Landslide (Live)",
+    "Imogen Heap - Goodnight and Go",
+    "Jimmy Eat World - Sweetness",
+    "JoJo - Leave (Get Out)",
+    "JoJo - Too Little Too Late",
+    "Julian Casablancas+The Voidz - Human Sadness",
+    "LANA DEL REY - CARMEN",
+    "LCD Soundsystem - american dream",
+    "Mazzy Star - Fade Into You",
+    "Michelle Branch - Everywhere",
+    "Natasha Bedingfield - Unwritten",
+    "Paris Hilton - Stars Are Blind",
+    "Rina Sawayama - Hurricanes",
+    "The Strokes - Automatic Stop Live Lollapalooza",
+    "The Veronicas - Untouched",
+    "Tinashe - Bouncin",
   ];
-  return files.map((name) => ({ name, url: encodePath(name) }));
+  return files.map((name) => ({ name: `${name}.mp4`, url: encodePath(`${name}.mp4`) }));
 }
 
 const LS_KEYS = {
@@ -77,6 +92,7 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
   // Maintain a persistent shuffled order of indices to avoid repetition and ensure a looping random experience.
   const [playOrder, setPlayOrder] = useState<number[]>([]);
   const [orderPos, setOrderPos] = useState<number>(0);
+
   // Probe for HLS manifests and prefer them when available. Build the HLS URL from the already
   // encoded MP4 URL to avoid any Unicode normalization/encoding mismatches.
   useEffect(() => {
@@ -87,7 +103,7 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
         const checks = await Promise.all(playlist.map(async (p) => {
           // Decode the original filename to match the actual HLS directory names
           const decodedName = decodeURIComponent(p.name);
-          const baseName = decodedName.replace(/\.[^.]+$/, "");
+          const baseName = decodedName.replace(/\.mp4$/, ""); // Remove .mp4 extension for HLS path
           const hlsUrl = `/videos/hls/${encodeURIComponent(baseName)}/index.m3u8`;
           try {
             const res = await fetch(hlsUrl, { method: "HEAD" });
@@ -99,7 +115,12 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
       } catch { /* ignore */ }
     })();
     return () => { mounted = false; };
-  }, [playlist]);
+  }, []); // Only run once on mount - intentionally omit playlist dependency to prevent infinite loop (ESLint warning expected)
+
+  // Clear video cache
+  const clearCache = useCallback(() => {
+    videoCache.clear();
+  }, []);
   const [currentIndex, setCurrentIndex] = useState<number>(() => {
     try {
       const raw = localStorage.getItem(LS_KEYS.index);
@@ -262,11 +283,19 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
     }
   }, [playlist.length, orderPos, playOrder, currentIndex, setIndex]);
 
+  // Preload next video for smoother transitions
+  const preloadNext = useCallback(() => {
+    const nextIndex = (currentIndex + 1) % playlist.length;
+    const nextUrl = playlist[nextIndex]?.url;
+    if (nextUrl) {
+      void videoCache.preload(nextUrl, 'low');
+    }
+  }, [currentIndex, playlist]);
+
   const value: VideoContextValue = {
     playlist,
     currentIndex,
     setIndex,
-    // note: next/prev are included below
     currentTime,
     setCurrentTime,
     isPlaying,
@@ -279,6 +308,8 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
     next,
     prev,
     registerDomControls,
+    preloadNext,
+    clearCache,
   };
 
   return <VideoContext.Provider value={value}>{children}</VideoContext.Provider>;

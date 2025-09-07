@@ -7,7 +7,7 @@ import Gallery from "./Gallery";
 import Blog from "./Blog";
 import { About } from "./About";
 import { Profile } from "./Profile";
-import BackgroundVideo from "./components/BackgroundVideo";
+import ModernBackgroundVideo from "./components/ModernBackgroundVideo";
 import ActionButtons from "./components/ActionButtons";
 
 export default function App() {
@@ -89,7 +89,7 @@ export default function App() {
         Skip to main content
       </a>
 
-      <BackgroundVideo />
+      <ModernBackgroundVideo />
       <div className="relative z-[10] min-h-screen flex flex-col bg-transparent">
         <header className="sticky top-0 z-10 glass-elevated glass-3d text-contrast p-6 mx-4 mt-4 rounded-2xl" role="banner">
           <div className="flex items-center gap-4">
