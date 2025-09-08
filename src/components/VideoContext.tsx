@@ -1,11 +1,31 @@
 import React, { createContext, useCallback, useContext, useRef, useState, useEffect } from "react";
 import { videoCache } from "./VideoCache";
 
+// Utility function to parse artist and song from filename
+const parseArtistAndSong = (filename: string) => {
+  // Remove file extension if present
+  const cleanName = filename.replace(/\.[^/.]+$/, '');
+
+  // Split on " - " to separate artist from song
+  const parts = cleanName.split(' - ');
+
+  if (parts.length >= 2) {
+    const artist = parts[0].trim();
+    const song = parts.slice(1).join(' - ').trim(); // Handle cases with multiple " - " in song title
+    return { artist, song };
+  }
+
+  // Fallback: if no separator found, treat whole thing as song title
+  return { artist: 'Unknown Artist', song: cleanName };
+};
+
 export interface PlaylistItem {
   name: string;
   url: string;
   duration?: number;
   thumbnail?: string;
+  artist?: string;
+  song?: string;
 }
 
 export interface DomControls {
@@ -76,7 +96,15 @@ function buildPlaylist(): PlaylistItem[] {
     "The Veronicas - Untouched",
     "Tinashe - Bouncin",
   ];
-  return files.map((name) => ({ name: `${name}.mp4`, url: encodePath(`${name}.mp4`) }));
+  return files.map((name) => {
+    const { artist, song } = parseArtistAndSong(name);
+    return {
+      name: `${name}.mp4`,
+      url: encodePath(`${name}.mp4`),
+      artist,
+      song
+    };
+  });
 }
 
 const LS_KEYS = {

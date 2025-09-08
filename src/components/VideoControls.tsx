@@ -1,244 +1,182 @@
-import React, { useEffect, useState } from "react";
-import { useVideo } from "./VideoContext";
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useVideo } from './VideoContext';
+import '../styles/video-controls.css';
 
-export default function VideoControls({ filename }: { filename: string }) {
-  const { isPlaying, play, pause, muted, setMuted, volume, setVolume, next, prev, currentIndex, playlist } = useVideo();
+interface VideoControlsProps {
+  filename: string;
+  className?: string;
+}
 
-  // Track low-effects mode from <html class="ep-lowfx"> and stay in sync
-  const [lowfx, setLowfx] = useState<boolean>(() => {
-    try { return document.documentElement.classList.contains("ep-lowfx"); } catch { return false; }
-  });
-  useEffect(() => {
-    const root = document.documentElement;
-    const update = () => {
-      try { setLowfx(root.classList.contains("ep-lowfx")); } catch { /* no-op */ }
-    };
-    update();
-    const observer = new MutationObserver(update);
-    try { observer.observe(root, { attributes: true, attributeFilter: ["class"] }); } catch { /* no-op */ }
-    const onToggle = (ev: Event) => {
-      try { setLowfx(Boolean((ev as CustomEvent<boolean>).detail)); } catch { /* no-op */ }
-    };
-    document.addEventListener("ep:lowfx-toggle", onToggle as EventListener);
-    return () => {
-      observer.disconnect();
-      document.removeEventListener("ep:lowfx-toggle", onToggle as EventListener);
-    };
-  }, []);
+export default function VideoControls({ filename, className = '' }: VideoControlsProps) {
+  const { isPlaying, play, pause, muted, setMuted, volume, setVolume, next, prev, playlist } = useVideo();
 
-  const togglePlay = () => {
-    if (isPlaying) pause();
-    else play();
-  };
+  const [isVisible, setIsVisible] = useState(true);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const autoHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [showOverflow, setShowOverflow] = useState(false);
-  const [playlistOpen, setPlaylistOpen] = useState(false);
-
-  // Reflect playlist open state (announced by Playlist via 'ep:playlist-state')
-  useEffect(() => {
-    const onState = (ev: Event) => {
-      try { setPlaylistOpen(Boolean((ev as CustomEvent<boolean>).detail)); } catch { /* ignore */ }
-    };
-    window.addEventListener("ep:playlist-state", onState as EventListener);
-    return () => window.removeEventListener("ep:playlist-state", onState as EventListener);
-  }, []);
-
-  // Return true when a click/key event should NOT toggle the playlist (interactive controls)
-  const shouldIgnoreToggle = (target?: EventTarget | null) => {
-    let node = target as HTMLElement | null;
-    while (node) {
-      const tag = (node.tagName || "").toUpperCase();
-      if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return true;
-      try {
-        if (node.hasAttribute && node.hasAttribute("data-no-toggle")) return true;
-      } catch { /* ignore */ }
-      node = node.parentElement;
+  // Auto-hide controls after 3 seconds of inactivity
+  const resetAutoHide = useCallback(() => {
+    if (autoHideTimeoutRef.current) {
+      clearTimeout(autoHideTimeoutRef.current);
     }
-    return false;
-  };
+    setIsVisible(true);
+    const timeout = setTimeout(() => setIsVisible(false), 3000);
+    autoHideTimeoutRef.current = timeout;
+  }, []);
 
-  const [showPlayerInfo, setShowPlayerInfo] = useState(false);
+  // Show controls on mouse movement or key press
+  useEffect(() => {
+    const handleActivity = () => resetAutoHide();
+
+    document.addEventListener('mousemove', handleActivity);
+    document.addEventListener('keydown', handleActivity);
+    document.addEventListener('touchstart', handleActivity);
+
+    resetAutoHide(); // Initial setup
+
+    return () => {
+      document.removeEventListener('mousemove', handleActivity);
+      document.removeEventListener('keydown', handleActivity);
+      document.removeEventListener('touchstart', handleActivity);
+      if (autoHideTimeoutRef.current) {
+        clearTimeout(autoHideTimeoutRef.current);
+      }
+    };
+  }, [resetAutoHide]);
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying) {
+      pause();
+    } else {
+      play();
+    }
+  }, [isPlaying, play, pause]);
+
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+
+    // Auto-unmute if volume is increased from 0
+    if (newVolume > 0 && muted) {
+      setMuted(false);
+    }
+  }, [setVolume, setMuted, muted]);
+
+  const toggleMute = useCallback(() => {
+    setMuted(!muted);
+    if (!muted && volume === 0) {
+      setVolume(0.5); // Set reasonable volume when unmuting
+    }
+  }, [muted, volume, setMuted, setVolume]);
+
+  const formatFilename = (name: string) => {
+    return name.replace(/\.[^/.]+$/, ''); // Remove file extension
+  };
 
   return (
     <div
-      className="ep-bg-controls"
-      role="button"
-      tabIndex={0}
-      aria-label="Background video controls — toggle songs list"
-      aria-expanded={playlistOpen}
-      aria-controls="playlist-panel"
-      style={{ maxWidth: "min(92vw, 980px)", flexWrap: "nowrap" }}
-      onClick={(e) => {
-        if (shouldIgnoreToggle(e.target)) return;
-        try { window.dispatchEvent(new Event("ep:playlist-toggle")); } catch { /* ignore */ }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          try { window.dispatchEvent(new Event("ep:playlist-toggle")); } catch { /* ignore */ }
-        }
-      }}
+      className={`apple-music-controls ${className} ${isVisible ? 'visible' : 'hidden'}`}
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={resetAutoHide}
     >
-      <div className="ep-bg-filename relative flex items-center gap-2" aria-live="polite" title={`Now playing: ${filename}`}>
-        <span className="sr-only">Current track: </span>
-        {/* Desktop/large screens: keep marquee */}
-        <span className="ep-bg-marquee pr-8 hidden md:inline-block" aria-hidden="true">{filename}&nbsp;&nbsp;&nbsp;</span>
-        {/* Mobile: truncated title (no scrolling). Playlist toggle moved to the player-bar container for a single accessible toggle target. */}
-        <div className="flex items-center gap-2 md:hidden">
-          <span className="truncate max-w-[52vw] text-sm" aria-hidden="true">{filename.replace(/\.mp4$/i, "")}</span>
-        </div>
-
-        {/* Player Info Button */}
+      <div className="controls-container">
+        {/* Previous Track Button */}
         <button
-          onClick={() => setShowPlayerInfo(!showPlayerInfo)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 info-button"
-          aria-label="Information about the music playlist"
-          title="Learn about Em's music collection"
+          type="button"
+          className="control-btn prev-btn"
+          onClick={prev}
+          disabled={playlist.length <= 1}
+          aria-label="Previous track"
+          title="Previous track"
         >
-          ℹ
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+          </svg>
         </button>
 
-        {/* Player Info Tooltip */}
-        {showPlayerInfo && (
-          <div className="info-tooltip absolute top-full left-0 mt-2 max-w-sm z-50">
-            <div className="font-semibold mb-1">🎵 Em's Favorite Songs</div>
-            <p className="mb-2">These are some of Em's most cherished songs that have special meaning. Each track tells a story and captures a moment in time.</p>
-            <p className="text-xs opacity-90">💡 <strong>Want to add more?</strong> Use the "Suggest More" button in the playlist to submit your favorite songs!</p>
-            <div className="absolute bottom-full left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-black"></div>
-          </div>
-        )}
-      </div>
-
-      <button
-        type="button"
-        className="ep-bg-btn ep-btn group"
-        aria-label={isPlaying ? "Pause background video playback" : "Resume background video playback"}
-        aria-pressed={isPlaying}
-        onClick={togglePlay}
-        title={isPlaying ? "Click to pause video" : "Click to play video"}
-      >
-        <span className="text-lg transition-transform group-hover:scale-110" aria-hidden="true">
-          {isPlaying ? "❚❚" : "▶"}
-        </span>
-        <span className="sr-only">{isPlaying ? "Pause" : "Play"} background video</span>
-      </button>
-
-      <button
-        type="button"
-        className="ep-bg-btn ep-btn group"
-        aria-label="Skip to previous track in playlist"
-        onClick={prev}
-        disabled={playlist.length <= 1}
-        title={playlist.length <= 1 ? "Only one track available" : "Go to previous track"}
-      >
-        <span className="text-lg transition-transform group-hover:scale-110" aria-hidden="true">⏮</span>
-        <span className="sr-only">Previous track</span>
-      </button>
-
-      <button
-        type="button"
-        className="ep-bg-btn ep-btn group"
-        aria-label="Skip to next track in playlist"
-        onClick={next}
-        disabled={playlist.length <= 1}
-        title={playlist.length <= 1 ? "Only one track available" : "Go to next track"}
-      >
-        <span className="text-lg transition-transform group-hover:scale-110" aria-hidden="true">⏭</span>
-        <span className="sr-only">Next track</span>
-      </button>
-
-      <button
-        type="button"
-        className="ep-bg-btn group"
-        aria-label={muted ? "Enable background video audio" : "Disable background video audio"}
-        aria-pressed={muted}
-        onClick={() => {
-          const next = !muted;
-          setMuted(next);
-          if (!next) {
-            // If unmuting, ensure audible volume and start playback
-            if (volume === 0) setVolume(0.5);
-            if (!isPlaying) play();
-          }
-        }}
-        title={muted ? "Click to unmute audio" : "Click to mute audio"}
-      >
-        <span className="text-lg transition-transform group-hover:scale-110" aria-hidden="true">
-          {muted ? "🔇" : "🔊"}
-        </span>
-        <span className="sr-only">{muted ? "Unmute" : "Mute"} background video</span>
-      </button>
-
-      {/* Low effects mode toggle for performance */}
-      <button
-        type="button"
-        className="ep-bg-btn ep-btn group"
-        aria-label={lowfx ? "Disable performance mode (higher quality visuals)" : "Enable performance mode (reduced visual effects)"}
-        aria-pressed={lowfx}
-        title={lowfx ? "Performance mode: ON - Click to enable full visual effects" : "Performance mode: OFF - Click to reduce visual effects for better performance"}
-        onClick={() => {
-          const next = !lowfx;
-          try {
-            document.dispatchEvent(new CustomEvent("ep:lowfx-toggle", { detail: next }));
-          } catch { /* no-op */ }
-          setLowfx(next);
-        }}
-      >
-        <span className="text-sm font-medium transition-transform group-hover:scale-110" aria-hidden="true">
-          {lowfx ? "FX-" : "FX"}
-        </span>
-        <span className="sr-only">{lowfx ? "Disable" : "Enable"} performance mode</span>
-      </button>
-
-      <div className="flex items-center gap-2">
-        <label htmlFor="bg-volume-slider" className="sr-only">Background video volume control</label>
-        <input
-          id="bg-volume-slider"
-          className="ep-bg-volume"
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          aria-label={`Background video volume: ${Math.round(volume * 100)}%`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(volume * 100)}
-          aria-valuetext={`${Math.round(volume * 100)} percent volume`}
-          value={volume}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            const v = parseFloat(e.target.value);
-            setVolume(v);
-            if (v > 0) {
-              if (muted) setMuted(false);
-              if (!isPlaying) play();
-            } else {
-              if (!muted) setMuted(true);
-            }
-          }}
-        />
-        <span className="text-xs opacity-70 sr-only" aria-live="polite">
-          Volume: {Math.round(volume * 100)}%
-        </span>
-      </div>
-
-      {/* Overflow menu (mobile/compact) */}
-      <div className="relative md:hidden">
-        <button type="button" className="ep-bg-btn ep-btn" aria-haspopup="menu" aria-expanded={showOverflow} aria-label="More controls" onClick={() => setShowOverflow(v => !v)}>
-          •••
+        {/* Play/Pause Button */}
+        <button
+          type="button"
+          className="control-btn play-pause-btn"
+          onClick={togglePlay}
+          aria-label={isPlaying ? "Pause" : "Play"}
+          title={isPlaying ? "Pause" : "Play"}
+        >
+          {isPlaying ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          )}
         </button>
-        {showOverflow && (
-          <div role="menu" className="absolute right-0 bottom-full mb-2 bg-white/90 border border-black rounded-xl p-2 shadow-xl flex flex-col min-w-[140px] z-10">
-            <button role="menuitem" className="ep-btn ep-btn--pink mb-2" onClick={() => { setShowOverflow(false); try { document.dispatchEvent(new Event("ep:lowfx-toggle")); } catch (e) { /* ignore */ } }}>
-               Toggle FX
-             </button>
-            {/* Removed duplicate "Songs" menu item — playlist toggle is provided on the player bar container */}
+
+        {/* Next Track Button */}
+        <button
+          type="button"
+          className="control-btn next-btn"
+          onClick={next}
+          disabled={playlist.length <= 1}
+          aria-label="Next track"
+          title="Next track"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+          </svg>
+        </button>
+
+        {/* Volume Controls */}
+        <div className="volume-controls">
+          <button
+            type="button"
+            className="control-btn volume-btn"
+            onClick={toggleMute}
+            onMouseEnter={() => setShowVolumeSlider(true)}
+            aria-label={muted ? "Unmute" : "Mute"}
+            title={muted ? "Unmute" : "Mute"}
+          >
+            {muted || volume === 0 ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+              </svg>
+            ) : volume < 0.5 ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71z"/>
+              </svg>
+            )}
+          </button>
+
+          <div
+            className={`volume-slider-container ${showVolumeSlider ? 'visible' : ''}`}
+            onMouseEnter={() => setShowVolumeSlider(true)}
+            onMouseLeave={() => setShowVolumeSlider(false)}
+          >
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={muted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="volume-slider"
+              aria-label={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+              title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+            />
+            <div className="volume-level" style={{ width: `${(muted ? 0 : volume) * 100}%` }} />
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Screen reader status updates */}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        Background video: {isPlaying ? "playing" : "paused"}, volume {Math.round(volume * 100)}%, {muted ? "muted" : "unmuted"}
+      {/* Track Info */}
+      <div className="track-info">
+        <div className="track-title">{formatFilename(filename)}</div>
+        <div className="track-artist">Background Music</div>
       </div>
     </div>
   );

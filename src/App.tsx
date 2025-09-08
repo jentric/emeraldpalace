@@ -5,6 +5,7 @@ import { Toaster, toast } from "sonner";
 import { useEffect, useState } from "react";
 import Gallery from "./Gallery";
 import Blog from "./Blog";
+import Chatroom from "./Chatroom";
 import { About } from "./About";
 import { Profile } from "./Profile";
 import ModernBackgroundVideo from "./components/ModernBackgroundVideo";
@@ -56,7 +57,7 @@ export default function App() {
   // Left-side pills in header
   const menuItems = [
     { id: "gallery" as const, label: "Timeline" },
-    { id: "blog" as const, label: "Messages" },
+    { id: "blog" as const, label: "Chatroom" },
     { id: "about" as const, label: "About" },
   ];
 
@@ -65,9 +66,9 @@ export default function App() {
     if (!isAuthenticated) return;
     try {
       if (!sessionStorage.getItem("ep:welcomedBack")) {
-        toast("Welcome back! Visit Messages to share.", {
+        toast("Welcome back! Join the Chatroom to connect.", {
           action: {
-            label: "Open Messages",
+            label: "Open Chatroom",
             onClick: () => setCurrentPage("blog"),
           },
         });
@@ -164,7 +165,7 @@ export default function App() {
               aria-modal="true"
               aria-label="Mobile navigation menu"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <div className="font-semibold">Menu</div>
                 <button
                   type="button"
@@ -172,27 +173,34 @@ export default function App() {
                   onClick={() => setIsMenuOpen(false)}
                   aria-label="Close menu"
                 >
-                  Close
+                  ✕
                 </button>
               </div>
-              {menuItems.map((item, index) => (
-                <button
-                  key={item.id}
-                  onClick={() => { setCurrentPage(item.id); setIsMenuOpen(false); }}
-                  className="ep-btn ep-btn--pink ep-menu-link"
-                  aria-current={currentPage === item.id ? "page" : undefined}
-                  autoFocus={index === 0}
-                >
-                  {item.label}
-                </button>
-              ))}
-              <div className="mt-4">
+
+              {/* Navigation Links */}
+              <div className="navigation-links">
+                {menuItems.map((item, index) => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setCurrentPage(item.id); setIsMenuOpen(false); }}
+                    className="ep-menu-link"
+                    aria-current={currentPage === item.id ? "page" : undefined}
+                    autoFocus={index === 0}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* User Account Section */}
+              <div className="user-section">
                 <button
                   onClick={() => { setCurrentPage("profile"); setIsMenuOpen(false); }}
-                  className="ep-btn ep-btn--pink ep-menu-link"
+                  className="ep-menu-link"
                   aria-current={currentPage === "profile" ? "page" : undefined}
                 >
-                  👤 Profile
+                  <span>👤</span>
+                  <span>Profile</span>
                 </button>
               </div>
             </nav>
@@ -221,13 +229,13 @@ export default function App() {
             <div className="sr-only" aria-live="polite" aria-atomic="true">
               {currentPage === "profile" && "Profile page: View and manage your personal information and settings."}
               {currentPage === "gallery" && "Timeline page: Explore and manage your media collection and memories."}
-              {currentPage === "blog" && "Messages page: Send messages to Emily and read what others have shared."}
+              {currentPage === "blog" && "Chatroom page: Join the conversation, create boards, and connect with the community."}
               {currentPage === "about" && "About page: Learn more about Emerald Palace and how to use it."}
             </div>
 
             {currentPage === "profile" && <Profile />}
             {currentPage === "gallery" && <Gallery />}
-            {currentPage === "blog" && <Blog />}
+            {currentPage === "blog" && <Chatroom />}
             {currentPage === "about" && <About />}
           </Authenticated>
         </main>

@@ -75,6 +75,19 @@ const applicationTables = {
     .index("by_media_user", ["mediaId", "userId"]) // for toggle lookup
     .index("by_media", ["mediaId"]) // for counts
     .index("by_user", ["userId"]),
+
+  boards: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    createdBy: v.string(),
+  }),
+
+  messages: defineTable({
+    content: v.string(),
+    author: v.string(),
+    boardId: v.id("boards"),
+  })
+    .index("by_board", ["boardId"]),
 };
 
 export default defineSchema({

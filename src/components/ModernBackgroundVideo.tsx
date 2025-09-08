@@ -6,6 +6,8 @@ import { VideoManager } from './VideoManager';
 import { videoCache } from './VideoCache';
 import { performanceMonitor, QualityRecommendation } from './VideoPerformanceMonitor';
 import ModernVideoControls from './ModernVideoControls';
+import { videoFallbackManager } from '../lib/videoFallbacks';
+import { browserCompatibility } from '../lib/browserCompatibility';
 
 export default function ModernBackgroundVideo() {
   const {
@@ -92,14 +94,38 @@ export default function ModernBackgroundVideo() {
           }
         }
 
-        // Load current video
-        await videoManagerRef.current!.loadSource(src, {
-          muted: !isAuthenticated || muted,
-          volume,
-          autoplay: true,
-          loop: false,
-          preload: isAuthenticated ? 'auto' : 'metadata',
-        });
+        // Check browser compatibility and special handling needs
+        const capabilities = browserCompatibility.getCapabilities();
+        const specialHandling = browserCompatibility.needsSpecialHandling();
+
+        // Handle special cases for iOS/Android autoplay restrictions
+        const shouldAutoplay = !specialHandling || specialHandling.action !== 'delay_autoplay';
+
+        // Load video with enhanced fallback support
+        if (videoElementRef.current) {
+          const fallbackResult = await videoFallbackManager.loadWithFallback(
+            videoElementRef.current,
+            src,
+            (attempt, format) => {
+              console.log(`[ModernBackgroundVideo] Attempting format: ${format} (attempt ${attempt})`);
+            },
+            (error, attempt) => {
+              console.warn(`[ModernBackgroundVideo] Fallback attempt ${attempt} failed:`, error.message);
+            }
+          );
+
+          if (fallbackResult.success && fallbackResult.src !== src) {
+            console.log(`[ModernBackgroundVideo] Successfully loaded fallback format: ${fallbackResult.format}`);
+          }
+
+          // Apply video settings
+          const videoElement = videoElementRef.current;
+          videoElement.muted = !isAuthenticated || muted;
+          videoElement.volume = volume;
+          videoElement.autoplay = shouldAutoplay;
+          videoElement.loop = false;
+          videoElement.preload = isAuthenticated ? 'auto' : 'metadata';
+        }
 
       } catch (err) {
         const error = err instanceof Error ? err : new Error('Failed to load video');
@@ -124,45 +150,108 @@ export default function ModernBackgroundVideo() {
     setError(error);
     setIsBuffering(false);
 
-    // Check if this is a format/codec error that suggests the video files are problematic
+    // Categorize the error type for better handling
+    const isNetworkError = error.message.includes('Network error') ||
+                          error.message.includes('connection') ||
+                          error.message.includes('ERR_CONNECTION_REFUSED') ||
+                          error.message.includes('404') ||
+                          error.message.includes('403');
+
     const isFormatError = error.message.includes('format not supported') ||
                          error.message.includes('decoding error') ||
                          error.message.includes('codec') ||
-                         error.message.includes('Video format not supported');
+                         error.message.includes('Video format not supported') ||
+                         error.message.includes('MEDIA_ERR_SRC_NOT_SUPPORTED') ||
+                         error.message.includes('MEDIA_ERR_DECODE');
+
+    const isBufferError = error.message.includes('buffer') ||
+                         error.message.includes('stalled') ||
+                         error.message.includes('waiting');
 
     if (isFormatError) {
-
       // Log codec error for monitoring
-      console.warn('[ModernBackgroundVideo] Multiple videos failing with codec errors - this may be a browser compatibility issue');
+      console.warn('[ModernBackgroundVideo] Codec/format error detected - attempting recovery strategies');
+      console.warn('[ModernBackgroundVideo] This may be a browser compatibility issue with H.264 High Profile');
 
-      // Clear error state and force video reload
+      // Clear error state and force video reload with delay
       setTimeout(() => {
+        console.log('[ModernBackgroundVideo] Clearing error state and attempting video reload');
         setError(null);
-        // Force a re-render by updating a state that triggers the video loading effect
         setIsBuffering(true);
-      }, 200);
+      }, 500);
 
       // For format errors, advance to next video after a short delay
       setTimeout(() => {
+        console.log('[ModernBackgroundVideo] Advancing to next video due to codec incompatibility');
         try {
           next();
         } catch (nextError) {
           console.error('Failed to advance to next video:', nextError);
         }
-      }, 1000); // Give reset a chance to work first
-    } else {
-      // Network or temporary error - will retry normally
+      }, 1500); // Give reload attempt time to work
 
-      // For network or temporary errors, wait longer before retrying
-      console.log('Network or temporary error detected - waiting before advancing');
+    } else if (isNetworkError) {
+      // Network errors - more aggressive retry
+      console.warn('[ModernBackgroundVideo] Network error detected - this may indicate server issues');
+
+      // Clear error and try to reload current video first
       setTimeout(() => {
-        console.log('Auto-advancing to next video due to error');
+        console.log('[ModernBackgroundVideo] Retrying current video due to network error');
+        setError(null);
+        setIsBuffering(true);
+        // Force re-initialization by triggering the load effect
+        setIsReady(false);
+      }, 1000);
+
+      // If retry doesn't work, advance after longer delay
+      setTimeout(() => {
+        if (error) { // Only advance if error still exists
+          console.log('[ModernBackgroundVideo] Network error persists, advancing to next video');
+          try {
+            next();
+          } catch (nextError) {
+            console.error('Failed to advance to next video:', nextError);
+          }
+        }
+      }, 5000); // Longer delay for network issues
+
+    } else if (isBufferError) {
+      // Buffer/stalled errors - less aggressive
+      console.warn('[ModernBackgroundVideo] Buffer/stalled error detected - attempting recovery');
+
+      // Clear error and wait for natural recovery
+      setTimeout(() => {
+        console.log('[ModernBackgroundVideo] Clearing buffer error, allowing natural recovery');
+        setError(null);
+        setIsBuffering(false); // Let it try to recover naturally
+      }, 2000);
+
+      // Only advance if the issue persists
+      setTimeout(() => {
+        if (error) {
+          console.log('[ModernBackgroundVideo] Buffer issue persists, advancing to next video');
+          try {
+            next();
+          } catch (nextError) {
+            console.error('Failed to advance to next video:', nextError);
+          }
+        }
+      }, 8000); // Even longer delay for buffer issues
+
+    } else {
+      // Unknown/other errors
+      console.warn('[ModernBackgroundVideo] Unknown error type detected:', error.message);
+
+      // Clear error and advance after moderate delay
+      setTimeout(() => {
+        console.log('[ModernBackgroundVideo] Clearing unknown error and advancing to next video');
+        setError(null);
         try {
           next();
         } catch (nextError) {
           console.error('Failed to advance to next video:', nextError);
         }
-      }, 3000); // Longer delay for network errors
+      }, 3000);
     }
   }, [next, filename]);
 

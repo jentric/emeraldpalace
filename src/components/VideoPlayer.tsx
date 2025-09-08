@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useVideo } from './VideoContext';
+import { browserCompatibility } from '../lib/browserCompatibility';
 
 interface VideoPlayerProps {
   src: string;
@@ -26,32 +27,53 @@ export default function VideoPlayer({
 
   const { muted, volume } = useVideo();
 
-  // Check browser and codec support
+  // Check browser and codec support using enhanced compatibility detector
   const checkCodecSupport = useCallback(() => {
-    const video = document.createElement('video');
-
-    // Check for H.264 High Profile support (the problematic codec in the Rina Sawayama video)
-    const h264High = video.canPlayType('video/mp4; codecs="avc1.640028"'); // H.264 High Profile
-    const h264Main = video.canPlayType('video/mp4; codecs="avc1.4d401f"'); // H.264 Main Profile
-    const h264Baseline = video.canPlayType('video/mp4; codecs="avc1.42e01f"'); // H.264 Baseline
-
-    // Check for AAC audio support
-    const aacLC = video.canPlayType('audio/mp4; codecs="mp4a.40.2"'); // AAC LC
-
-    // Detect browser type for targeted fallbacks
-    const userAgent = navigator.userAgent;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-    const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
-    const isFirefox = /Firefox/i.test(userAgent);
-    const isChrome = /Chrome/i.test(userAgent);
-
+    const capabilities = browserCompatibility.getCapabilities();
+    const specialHandling = browserCompatibility.needsSpecialHandling();
 
     return {
-      h264Supported: h264High !== '' || h264Main !== '' || h264Baseline !== '',
-      h264HighSupported: h264High !== '',
-      aacSupported: aacLC !== '',
-      hasBasicSupport: (h264High !== '' || h264Main !== '' || h264Baseline !== '') && (aacLC !== ''),
-      browser: { isMobile, isSafari, isFirefox, isChrome }
+      // Enhanced codec support using comprehensive detection
+      h264Supported: capabilities.codecSupport.h264Baseline || capabilities.codecSupport.h264Main || capabilities.codecSupport.h264High,
+      h264HighSupported: capabilities.codecSupport.h264High,
+      h264MainSupported: capabilities.codecSupport.h264Main,
+      h264BaselineSupported: capabilities.codecSupport.h264Baseline,
+
+      // Alternative codec support
+      vp8Supported: capabilities.codecSupport.vp8,
+      vp9Supported: capabilities.codecSupport.vp9,
+      hevcSupported: capabilities.codecSupport.hevc,
+
+      // Audio support
+      aacSupported: capabilities.codecSupport.aacLC,
+      opusSupported: capabilities.codecSupport.opus,
+
+      // Browser capabilities
+      mseSupported: capabilities.supportsMSE,
+      webrtcSupported: capabilities.supportsWebRTC,
+
+      // Comprehensive support check
+      hasBasicSupport: (capabilities.codecSupport.h264Baseline || capabilities.codecSupport.h264Main || capabilities.codecSupport.h264High) && capabilities.codecSupport.aacLC,
+      hasAlternativeSupport: capabilities.codecSupport.vp8 || capabilities.codecSupport.vp9 || capabilities.codecSupport.hevc,
+
+      // Enhanced browser detection
+      browser: {
+        isMobile: capabilities.isMobile,
+        isSafari: capabilities.isSafari,
+        isFirefox: capabilities.isFirefox,
+        isChrome: capabilities.isChrome,
+        isEdge: capabilities.isEdge,
+        isIOS: capabilities.isIOS,
+        isAndroid: capabilities.isAndroid
+      },
+
+      // Special handling requirements
+      needsSpecialHandling: specialHandling !== null,
+      specialHandlingReason: specialHandling?.reason || null,
+      specialHandlingAction: specialHandling?.action || null,
+
+      // HLS support
+      hlsSupported: capabilities.supportsHLS
     };
   }, []);
 
@@ -73,16 +95,71 @@ export default function VideoPlayer({
         console.warn('[VideoPlayer] H.264 High Profile not supported - this affects the Rina Sawayama video');
       }
 
+      // Enhanced browser-specific handling
+      if (codecSupport.browser.isSafari) {
+        console.log('[VideoPlayer] Safari detected - native HLS support available');
+      } else if (!codecSupport.mseSupported) {
+        console.warn('[VideoPlayer] Media Source Extensions not supported - HLS playback may fail');
+      }
+
       if (!codecSupport.hasBasicSupport) {
         console.warn('[VideoPlayer] Browser lacks basic codec support for H.264/AAC');
 
-        // Try MP4 fallback immediately for incompatible browsers
+        // Try multiple fallback formats for incompatible browsers
+        const fallbackFormats = browserCompatibility.getFallbackFormats(source);
+
+        for (const fallbackSrc of fallbackFormats) {
+          try {
+            console.log('[VideoPlayer] Attempting fallback format due to codec incompatibility:', fallbackSrc);
+
+            // Check if fallback file exists
+            const fallbackResponse = await fetch(fallbackSrc, { method: 'HEAD' });
+            if (fallbackResponse.ok) {
+              console.log('[VideoPlayer] Fallback format available, switching to:', fallbackSrc);
+              video.src = fallbackSrc;
+              return;
+            } else {
+              console.warn('[VideoPlayer] Fallback format not available:', fallbackSrc);
+            }
+          } catch (fallbackError) {
+            console.warn('[VideoPlayer] Fallback format fetch failed:', fallbackSrc, fallbackError);
+          }
+        }
+      }
+
+      // Check for server connectivity before initializing HLS
+      try {
+        const testResponse = await fetch(source, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+
+        if (!testResponse.ok) {
+          console.warn(`[VideoPlayer] HLS manifest not accessible: ${testResponse.status}`);
+
+          // Try MP4 fallback if HLS manifest is not accessible
+          const mp4Fallback = source.replace(/\/videos\/hls\/[^/]+\/index\.m3u8$/, (match) => {
+            const baseName = match.split('/')[3];
+            return `/videos/${decodeURIComponent(baseName)}.mp4`;
+          });
+
+          if (mp4Fallback !== source) {
+            console.log('[VideoPlayer] HLS manifest not accessible, trying MP4 fallback:', mp4Fallback);
+            video.src = mp4Fallback;
+            return;
+          }
+        }
+      } catch (connectError) {
+        console.error('[VideoPlayer] Server connectivity check failed:', connectError);
+
+        // For connection issues, try MP4 fallback
         const mp4Fallback = source.replace(/\/videos\/hls\/[^/]+\/index\.m3u8$/, (match) => {
           const baseName = match.split('/')[3];
           return `/videos/${decodeURIComponent(baseName)}.mp4`;
         });
 
         if (mp4Fallback !== source) {
+          console.log('[VideoPlayer] Server connectivity issue, trying MP4 fallback:', mp4Fallback);
           video.src = mp4Fallback;
           return;
         }
@@ -156,42 +233,65 @@ export default function VideoPlayer({
         throw fetchError;
       }
 
+      // Get browser-optimized HLS configuration
+      const browserCapabilities = browserCompatibility.getCapabilities();
+      const hlsConfig = browserCapabilities.recommendedConfig;
+
       const hls = new Hls({
-        // Optimized configuration - even more conservative for Rina Sawayama video
-        maxBufferLength: isRinaSawayama ? 10 : 20, // Extra conservative for problematic video
-        maxMaxBufferLength: isRinaSawayama ? 20 : 40,
-        maxBufferSize: isRinaSawayama ? 15 * 1000 * 1000 : 30 * 1000 * 1000, // Smaller buffer
-        maxBufferHole: 0.5,
-        // Adaptive bitrate - more conservative for problematic video
-        abrEwmaDefaultEstimate: isRinaSawayama ? 500000 : 800000, // Lower bitrate estimate
-        abrEwmaSlowFactor: isRinaSawayama ? 3.0 : 2.0, // Slower adaptation
-        abrEwmaFastFactor: isRinaSawayama ? 0.5 : 1.0, // More conservative
-        // Performance optimizations
-        enableWorker: false, // Disable worker to avoid potential issues
-        startLevel: isRinaSawayama ? 0 : -1, // Force lowest quality for problematic video
-        // Recovery settings - more aggressive for problematic video
-        maxLoadRetryCount: isRinaSawayama ? 1 : 2,
-        maxFragRetryCount: isRinaSawayama ? 1 : 2,
-        // Disable features that aren't needed for background video
-        capLevelToPlayerSize: false,
-        startFragPrefetch: false,
-        // CORS and loading settings
-        xhrSetup: (xhr: XMLHttpRequest) => {
-          xhr.withCredentials = false; // Disable credentials for public files
-          // Add timeout for problematic video
-          if (isRinaSawayama) {
-            xhr.timeout = 10000; // 10 second timeout
-          }
-        },
-        // Additional settings for problematic video
+        // Use browser-optimized configuration as base
+        ...hlsConfig,
+
+        // Override for Rina Sawayama specific issues
         ...(isRinaSawayama && {
           enableSoftwareAES: true,
           enableCEA708Captions: false,
           enableWebVTT: false,
           enableIMSC1: false,
           enableEMMSG: false,
-          maxLoadingDelay: 4, // Shorter loading delay
-        })
+          maxLoadingDelay: 3,
+          // Extra conservative buffer settings for problematic video
+          maxBufferLength: Math.min(hlsConfig.maxBufferLength, 8),
+          maxMaxBufferLength: Math.min(hlsConfig.maxMaxBufferLength, 15),
+          maxBufferSize: Math.min(hlsConfig.maxBufferSize, 12 * 1000 * 1000),
+          maxBufferBehind: 30,
+          maxBufferAhead: 30,
+          startLevel: 0, // Force lowest quality for compatibility
+          abrEwmaDefaultEstimate: Math.min(hlsConfig.abrEwmaDefaultEstimate, 400000),
+          abrEwmaSlowFactor: 3.0,
+          abrEwmaFastFactor: 0.5,
+        }),
+
+        // Browser-specific optimizations
+        ...(codecSupport.browser.isSafari && {
+          // Safari-specific settings for better stability
+          enableSoftwareAES: false,
+          enableCEA708Captions: false,
+          enableWebVTT: false,
+          enableIMSC1: false,
+          enableEMMSG: false,
+        }),
+
+        // Enhanced retry settings based on browser capabilities
+        maxLoadRetryCount: codecSupport.browser.isMobile ? 6 : (isRinaSawayama ? 2 : hlsConfig.maxLoadRetryCount),
+        maxFragRetryCount: codecSupport.browser.isMobile ? 6 : (isRinaSawayama ? 2 : hlsConfig.maxFragRetryCount),
+        fragLoadingMaxRetry: 3,
+        fragLoadingRetryDelay: codecSupport.browser.isMobile ? 1500 : 1000,
+        manifestLoadingMaxRetry: codecSupport.browser.isMobile ? 5 : 3,
+        manifestLoadingRetryDelay: codecSupport.browser.isMobile ? 1500 : 1000,
+
+        // Loading and prefetch settings
+        capLevelToPlayerSize: false,
+        startFragPrefetch: codecSupport.browser.isSafari ? false : !codecSupport.browser.isMobile,
+        lowLatencyMode: false,
+        backBufferLength: codecSupport.browser.isMobile ? 20 : (isRinaSawayama ? 30 : 60),
+
+        // CORS and network settings with browser-specific timeouts
+        xhrSetup: (xhr: XMLHttpRequest) => {
+          xhr.withCredentials = false;
+          const timeout = codecSupport.browser.isMobile ? 15000 :
+                         (isRinaSawayama ? 8000 : hlsConfig.xhrTimeout);
+          xhr.timeout = timeout;
+        },
       });
 
       hlsRef.current = hls;
@@ -245,6 +345,33 @@ export default function VideoPlayer({
           frag: data.frag,
           level: data.level
         });
+
+        // Special handling for bufferSeekOverHole - try to recover before treating as fatal
+        if (data.details === 'bufferSeekOverHole') {
+          console.warn('[VideoPlayer] Buffer seek over hole detected - attempting gap recovery');
+
+          // Stop the current load and restart with safer settings
+          hls.stopLoad();
+
+          // Wait a moment then restart
+          setTimeout(() => {
+            // Try to resume at a safe position in the buffer
+            if (video.buffered.length > 0) {
+              const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+              const safePosition = Math.max(0, bufferedEnd - 3); // 3 seconds before end of buffer
+
+              if (safePosition < video.duration && safePosition >= 0) {
+                video.currentTime = safePosition;
+              }
+            }
+
+            // Restart loading
+            hls.startLoad();
+          }, 1000);
+
+          // Don't treat this as a fatal error yet
+          return;
+        }
 
         // Try MP4 fallback for fatal errors
         if (data.fatal) {
@@ -327,6 +454,26 @@ export default function VideoPlayer({
         // Fragment loaded
       });
 
+      // Buffer management events
+      hls.on(Hls.Events.BUFFER_APPENDED, (_event: any, _data: any) => {
+        // Check for buffer gaps and handle them
+        if (video.buffered.length > 1) {
+          // There might be a gap, try to fill it
+          const firstEnd = video.buffered.end(0);
+          const secondStart = video.buffered.start(1);
+
+          if (secondStart - firstEnd > 1) { // Gap larger than 1 second
+            console.warn('[VideoPlayer] Buffer gap detected, attempting to fill');
+            // The HLS library should handle this automatically, but we can log it
+          }
+        }
+      });
+
+      // Level switched - monitor quality changes
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_event: any, data: any) => {
+        console.log(`[VideoPlayer] Switched to quality level: ${data.level}`);
+      });
+
     } catch (err) {
       console.error('[VideoPlayer] HLS initialization failed:', err);
       const error = err instanceof Error ? err : new Error('Failed to initialize HLS');
@@ -348,10 +495,23 @@ export default function VideoPlayer({
     }
   }, [onReady, onError, onBuffering, checkCodecSupport]);
 
+
   // Initialize video with optimized settings and better fallback handling
   const initializeVideo = useCallback(async () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      console.warn('[VideoPlayer] Video element not found');
+      return;
+    }
+
+    // Validate src before proceeding
+    if (!src || src.trim() === '') {
+      console.error('[VideoPlayer] Empty or invalid src provided:', src);
+      const error = new Error('Video source is empty or invalid');
+      setError(error);
+      onError?.(error);
+      return;
+    }
 
 
     // Reset state
@@ -359,25 +519,152 @@ export default function VideoPlayer({
     setIsReady(false);
     setIsBuffering(true);
 
-    // Set optimized video attributes
-    video.preload = 'metadata';
-    video.playsInline = true;
+    // Set browser-optimized video attributes
+    const videoAttributes = browserCompatibility.getVideoAttributes();
+
+    // Apply all browser-optimized attributes
+    Object.entries(videoAttributes).forEach(([key, value]) => {
+      if (typeof value === 'boolean') {
+        if (value) {
+          video.setAttribute(key, '');
+        }
+      } else {
+        video.setAttribute(key, value);
+      }
+    });
+
+    // Override specific attributes based on context
     video.muted = muted;
     video.volume = volume;
-    video.autoplay = true;
+    video.autoplay = !codecSupport.needsSpecialHandling || codecSupport.specialHandlingAction !== 'delay_autoplay';
     video.loop = false;
 
-    // Performance optimizations
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
+    // Prevent seeking into unbuffered areas
+    const originalSeekHandler = video.ontimeupdate;
+    video.ontimeupdate = (e) => {
+      // Call original handler if it exists
+      if (originalSeekHandler) originalSeekHandler.call(video, e);
+
+      // Additional buffer monitoring
+      const buffered = video.buffered;
+      const currentTime = video.currentTime;
+      const duration = video.duration;
+
+      // Check if we're approaching an unbuffered area
+      if (buffered.length > 0 && currentTime > 0) {
+        const lastBufferedEnd = buffered.end(buffered.length - 1);
+
+        // If we're within 2 seconds of an unbuffered area, pause to buffer
+        if (lastBufferedEnd - currentTime < 2 && currentTime < duration - 2) {
+          console.log('[VideoPlayer] Approaching buffer gap, preparing for smooth playback');
+        }
+      }
+    };
+
+    // Prevent manual seeking into unbuffered areas
+    video.onseeking = () => {
+      const buffered = video.buffered;
+      const seekTarget = video.currentTime;
+
+      // Check if seek target is within buffered ranges
+      let isBuffered = false;
+      for (let i = 0; i < buffered.length; i++) {
+        if (seekTarget >= buffered.start(i) && seekTarget <= buffered.end(i)) {
+          isBuffered = true;
+          break;
+        }
+      }
+
+      if (!isBuffered && buffered.length > 0) {
+        console.warn('[VideoPlayer] Attempting to seek to unbuffered area, adjusting to safe position');
+        // Use safe seek function
+        const lastBufferedEnd = buffered.end(buffered.length - 1);
+        const safePosition = Math.max(0, lastBufferedEnd - 2);
+        if (safePosition >= 0 && safePosition <= video.duration) {
+          video.currentTime = safePosition;
+        }
+      }
+    };
+
+    // Monitor for stalled playback (when buffering stops unexpectedly)
+    video.onstalled = () => {
+      console.warn('[VideoPlayer] Video stalled - buffering stopped unexpectedly');
+      setIsBuffering(true);
+      onBuffering?.(true);
+    };
+
+    // Monitor waiting events (when video stops due to buffering)
+    video.onwaiting = () => {
+      console.log('[VideoPlayer] Video waiting for buffer');
+      setIsBuffering(true);
+      onBuffering?.(true);
+    };
+
+    // Monitor when video can play again
+    video.oncanplay = () => {
+      console.log('[VideoPlayer] Video can play - buffer ready');
+      setIsBuffering(false);
+      onBuffering?.(false);
+    };
 
     // Check if source is HLS
     const isHLS = src.includes('.m3u8');
+
+    // Server connectivity check before attempting to load video
+    let serverErrorMessage = '';
+
+    try {
+      const serverCheckResponse = await fetch(window.location.origin, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(3000) // 3 second timeout
+      });
+
+      if (!serverCheckResponse.ok) {
+        throw new Error(`Server responded with status: ${serverCheckResponse.status}`);
+      }
+
+      console.log('[VideoPlayer] Server connectivity confirmed');
+    } catch (connectError) {
+      console.warn('[VideoPlayer] Server connectivity check failed:', connectError);
+      console.warn('[VideoPlayer] This may indicate the dev server is not running or there are network issues');
+
+      serverErrorMessage = connectError instanceof Error ? connectError.message : String(connectError);
+
+      const serverError = new Error(
+        'Unable to connect to video server. Please ensure the development server is running and try refreshing the page.'
+      );
+      setError(serverError);
+      onError?.(serverError);
+      return;
+    }
 
     try {
       if (isHLS) {
         await initializeHLS(video, src);
       } else {
+        // Regular video file - check if file exists first
+        try {
+          const fileCheckResponse = await fetch(src, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(5000)
+          });
+
+          if (!fileCheckResponse.ok) {
+            throw new Error(`Video file not found: ${fileCheckResponse.status}`);
+          }
+
+          console.log('[VideoPlayer] Video file accessibility confirmed');
+        } catch (fileCheckError) {
+          console.warn('[VideoPlayer] Video file check failed:', fileCheckError);
+
+          const fileError = new Error(
+            'Video file could not be accessed. Please check if the video file exists on the server.'
+          );
+          setError(fileError);
+          onError?.(fileError);
+          return;
+        }
+
         // Regular video file
         video.src = src;
         setIsReady(true);
@@ -395,7 +682,7 @@ export default function VideoPlayer({
       setError(error);
       onError?.(error);
     }
-  }, [src, muted, volume, initializeHLS, onReady, onError]);
+  }, [src, muted, volume, initializeHLS, onReady, onError, onBuffering]);
 
   // Initialize on mount and src change
   useEffect(() => {
@@ -416,7 +703,7 @@ export default function VideoPlayer({
         hlsRef.current = null;
       }
     };
-  }, [initializeVideo, onReady]);
+  }, [initializeVideo, onReady, onBuffering]);
 
   // Update mute state
   useEffect(() => {
@@ -477,12 +764,16 @@ export default function VideoPlayer({
       });
 
       switch (videoError.code) {
-        case MediaError.MEDIA_ERR_NETWORK:
-          errorMessage = 'Network error while loading video - check your internet connection';
+        case MediaError.MEDIA_ERR_ABORTED:
+          errorMessage = 'Video playback was aborted - this may be due to network issues';
           break;
-          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = 'Video format not supported - H.264 High Profile codec issue detected';
-            console.warn('[VideoPlayer] Format not supported - H.264 High Profile Level 3.0 codec compatibility issue');
+        case MediaError.MEDIA_ERR_NETWORK:
+          errorMessage = 'Network error while loading video - check your internet connection and server status';
+          console.warn('[VideoPlayer] Network error detected - this may indicate server connectivity issues');
+          break;
+        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          errorMessage = 'Video format not supported - H.264 High Profile codec issue detected';
+          console.warn('[VideoPlayer] Format not supported - H.264 High Profile Level 3.0 codec compatibility issue');
 
           // For codec issues, try different approaches
           setTimeout(() => {
@@ -514,6 +805,9 @@ export default function VideoPlayer({
                   enableWebVTT: false,
                   enableIMSC1: false,
                   enableEMMSG: false,
+                  // More conservative network settings
+                  maxLoadRetryCount: 2,
+                  maxFragRetryCount: 2,
                 });
 
                 fallbackHls.attachMedia(video);
@@ -551,10 +845,12 @@ export default function VideoPlayer({
           }, 500);
           break;
         case MediaError.MEDIA_ERR_DECODE:
-          errorMessage = 'Video decoding error - video file may be corrupted';
+          errorMessage = 'Video decoding error - video file may be corrupted or use unsupported codec';
+          console.warn('[VideoPlayer] Decoding error detected - this may indicate codec compatibility issues');
           break;
         default:
-          errorMessage = videoError.message || 'Video playback error';
+          errorMessage = videoError.message || 'Video playback error - unknown issue occurred';
+          console.warn('[VideoPlayer] Unknown video error:', videoError);
       }
     }
 

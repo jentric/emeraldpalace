@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useVideo } from './VideoContext';
+import '../styles/video-controls.css';
 
 interface VideoControlsProps {
   filename: string;
@@ -8,6 +9,11 @@ interface VideoControlsProps {
 
 export default function ModernVideoControls({ filename, className = '' }: VideoControlsProps) {
   const { isPlaying, play, pause, muted, setMuted, volume, setVolume, next, prev, currentIndex, playlist } = useVideo();
+
+  // Get current track info
+  const currentTrack = playlist[currentIndex];
+  const displayArtist = currentTrack?.artist || 'Background Music';
+  const displaySong = currentTrack?.song || formatFilename(filename);
 
   const [isVisible, setIsVisible] = useState(true);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
@@ -74,20 +80,38 @@ export default function ModernVideoControls({ filename, className = '' }: VideoC
 
   return (
     <div
-      className={`modern-video-controls ${className} ${isVisible ? 'visible' : 'hidden'}`}
+      className={`apple-music-controls ${className} ${isVisible ? 'visible' : 'hidden'}`}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={resetAutoHide}
     >
+      {/* Album Art Placeholder */}
+      <div className="album-art">
+        <div className="album-art-placeholder">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="album-icon">
+            <path d="M12 2C13.1 2 14 2.9 14 4V20C14 21.1 13.1 22 12 22S10 21.1 10 20V4C10 2.9 10.9 2 12 2M12 6V8H14V6H12M12 10V12H14V10H12Z"/>
+          </svg>
+        </div>
+      </div>
+
       {/* Track Info */}
       <div className="track-info">
         <div className="track-title">{formatFilename(filename)}</div>
-        <div className="track-counter">
-          {currentIndex + 1} / {playlist.length}
-        </div>
+        <div className="track-artist">Background Music</div>
       </div>
 
       {/* Main Controls */}
       <div className="main-controls">
+        <button
+          type="button"
+          className="control-btn shuffle-btn"
+          aria-label="Shuffle"
+          title="Shuffle"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 3L21 7L17 11V9H14V7H17M7 9V7H10V9M7 13V11H12V13M17 21L13 17L17 13V15H20V17H17V21Z"/>
+          </svg>
+        </button>
+
         <button
           type="button"
           className="control-btn prev-btn"
@@ -96,7 +120,7 @@ export default function ModernVideoControls({ filename, className = '' }: VideoC
           aria-label="Previous track"
           title="Previous track"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
           </svg>
         </button>
@@ -109,11 +133,11 @@ export default function ModernVideoControls({ filename, className = '' }: VideoC
           title={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
             </svg>
           ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
           )}
@@ -127,8 +151,19 @@ export default function ModernVideoControls({ filename, className = '' }: VideoC
           aria-label="Next track"
           title="Next track"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className="control-btn repeat-btn"
+          aria-label="Repeat"
+          title="Repeat"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 17H7V14L3 18L7 22V19H19V13H17M7 7H17V10L21 6L17 2V5H5V11H7V7Z"/>
           </svg>
         </button>
       </div>
@@ -144,15 +179,15 @@ export default function ModernVideoControls({ filename, className = '' }: VideoC
           title={muted ? "Unmute" : "Mute"}
         >
           {muted || volume === 0 ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
             </svg>
           ) : volume < 0.5 ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
             </svg>
           ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71z"/>
             </svg>
           )}
@@ -182,6 +217,10 @@ export default function ModernVideoControls({ filename, className = '' }: VideoC
       <div className="progress-container">
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: '0%' }} />
+        </div>
+        <div className="time-display">
+          <span className="current-time">0:00</span>
+          <span className="duration">0:00</span>
         </div>
       </div>
     </div>
